@@ -7,7 +7,7 @@ export default tool({
     "Run Python in the persistent Blender 5.2 session. The scene auto-snapshots before execution; returns stdout, error with traceback, duration, and an object diff. Use this for every scene change.",
   args: {
     code: tool.schema.string().describe("Python source; bpy, bmesh, mathutils and numpy are available"),
-    timeout: tool.schema.number().default(30).describe("Seconds before the worker gives up; on expiry the client restarts the worker and restores the pre-exec snapshot"),
+    timeout: tool.schema.number().default(30).describe("Seconds before the worker gives up; pure-Python hangs soft-interrupt, hard hangs restart+restore the worker"),
   },
   async execute(args) {
     const timeout = args.timeout ?? 30

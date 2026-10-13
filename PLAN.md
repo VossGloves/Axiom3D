@@ -226,8 +226,10 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   enable in Preferences. Server listens on ephemeral port, writes port file, client
   attaches on next tool call.
 - Safety deltas: GUI sessions never auto-restart (user process); poisoned state
-  surfaced but not auto-recovered; snapshot-restore of unsaved work requires manual
-  `blender-checkpoint` call.
+  auto-clears once the main thread is free again (no Blender restart); dead addon
+  TCP with live Blender falls back to a separate headless worker so tools keep
+  working; snapshot-restore of unsaved work requires manual `blender-checkpoint`
+  call. Soft signal timeout interrupts pure-Python hangs before hard poison.
 - [x] `blender-open` tool (`.opencode/tools/blender-open.ts`): opens .blend as main
   file or imports .glb/.gltf/.fbx/.obj/.usd/.ply/.stl directly into attached GUI
   session. Requires GUI mode; errors if headless. AI prefers this over export+manual
@@ -248,8 +250,10 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
 - **Blender 5.2 API drift vs model training data** — core problem; mitigated by symbol
   index + pinned docs.
 - **Headless EEVEE needs GPU on Windows** — Workbench fallback flag in render tool.
-- **Worker crash loses scene** — snapshot before every exec, auto-restart.
-- **Long exec hangs Blender** — per-call timeout, kill/restart.
+- **Worker crash loses scene** — snapshot before every exec, auto-restart (headless);
+  GUI auto-unpoisons + headless fallback when addon TCP dies.
+- **Long exec hangs Blender** — soft SIGALRM timeout for pure-Python; hard poison +
+  auto-unpoison / headless fallback for C-level hangs.
 - **Upstream churn** — project-tools-only surface keeps rebase pain near zero.
 
 ## Session resume protocol

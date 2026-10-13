@@ -181,7 +181,7 @@ the final done/not-done call.
   transforms applied, nothing floating. Full spec: `docs/axiom3d/conventions.md`.
 - One risky change per `blender-exec`/`blender-gate` call: each snapshots, so
   splitting edits gives cheap recovery points. Never mutate the scene outside them.
-- Worker timeout/restart means the scene was restored to the last checkpoint.
+- Worker timeout/restart means the scene was restored to the last checkpoint (headless) or the session auto-recovers once the main thread frees (GUI).
   Inspect with `blender-scene`, retry smaller.
 - Validation failures and render critique are evidence, not opinions. Address what
   the tools report before declaring done.

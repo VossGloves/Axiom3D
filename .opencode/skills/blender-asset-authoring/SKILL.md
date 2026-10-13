@@ -91,8 +91,9 @@ Each bakes to a real, grounded, UV'd mesh.
 - Curve Tangent node is `GeometryNodeInputTangent`.
 - Prefer the EXACT boolean solver for reliability; MANIFOLD can crash on
   multi-shell input.
-- Snapshot before risky edits (the tools do this automatically); on timeout/restart
-  the scene is already restored to the last checkpoint.
+- Snapshot before risky edits (the tools do this automatically); on hard timeout
+  the headless worker restores the last checkpoint, or the GUI session auto-recovers
+  once the main thread frees.
 
 ## Resources
 
