@@ -78,7 +78,13 @@ def cmd_exec(params):
     before = scene_summary()
     out, err = io.StringIO(), io.StringIO()
     error = None
-    namespace = {"bpy": bpy, "__builtins__": __builtins__, "__name__": "__axiom3d_exec__"}
+    import ops
+    namespace = {
+        "bpy": bpy,
+        "ops": ops,
+        "__builtins__": __builtins__,
+        "__name__": "__axiom3d_exec__",
+    }
 
     old_out, old_err = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = out, err

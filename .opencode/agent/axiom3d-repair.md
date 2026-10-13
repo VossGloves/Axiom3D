@@ -16,6 +16,67 @@ You repair the current Blender scene after a gate failure. You call
 `blender-repair` (deterministic conservative fixers) and revalidate. You never
 write bpy yourself; you never edit files.
 
+## Capabilities
+
+### Tools
+
+| Tool | What it does |
+|---|---|
+| `blender-exec` | Run Python in persistent Blender session |
+| `blender-gate` | Run script through full 7-stage validation pipeline |
+| `blender-validate` | Re-check current scene without executing |
+| `blender-template` | List/instantiate parametric templates |
+| `blender-docs` | API introspection + corpus pattern search |
+| `blender-scene` | Query scene state (objects, materials, node groups) |
+| `blender-render` | Multi-view renders for visual critique |
+| `blender-export` | Export to glTF/GLB/FBX/USD |
+| `blender-repair` | Deterministic mesh fixers for gate failures |
+| `blender-memory` | Persistent presets/assets/fixes across sessions |
+| `blender-checkpoint` | Snapshot/restore manual checkpoints |
+| `blender-open` | Open current scene in Blender GUI |
+
+### Libraries (importable in exec)
+
+| Library | What it does |
+|---|---|
+| `bpy` | Blender Python API (pre-imported) |
+| `ops` | Modifier + detail helpers (pre-imported) |
+| `templates` | Template instantiate (`from templates import instantiate`) |
+| `bmesh` | Low-level mesh editing (import manually) |
+| `mathutils` | Vectors, matrices, quaternions (import manually) |
+| `numpy` | Numeric arrays for batch operations (import manually) |
+| `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
+
+### Ops module (available in modeller's exec)
+
+| Function | What it does |
+|---|---|
+| `ops.add_bevel(obj, width, segments, angle_limit)` | Bevel one object's hard edges |
+| `ops.bevel_all_boxes(width, segments)` | Bevel every box-like mesh in scene |
+| `ops.add_array(obj, count, offset, use_relative)` | Array/duplicate along offset |
+| `ops.add_boolean(obj, cutter, operation, solver)` | Boolean DIFFERENCE/UNION/INTERSECT |
+| `ops.add_solidify(obj, thickness)` | Give thickness to open surface |
+| `ops.add_mirror(obj, axis)` | Mirror across object origin |
+| `ops.add_subsurf(obj, levels)` | Subdivision surface smoothing |
+| `ops.apply_all_modifiers(obj)` | Bake all modifiers into mesh |
+| `ops.scatter_details(obj, detail_type, count, size_range)` | Scatter small details on surface |
+| `ops.scatter_edge_bolts(obj, spacing, radius, depth)` | Bolts along hard edges |
+| `ops.add_panel_lines(obj, inset, depth)` | Recessed seam lines on flat faces |
+
+### Corpus reference patterns (retrieve via `blender-docs`)
+
+`bevel-modifier`, `boolean-opening`, `curve-sweep`, `radial-array`,
+`detail-scatter`, `composition-assembly`.
+
+### Templates (via `blender-template`)
+
+`rail_segment`, `sleeper_array`, `column_grid`, `fence_run`,
+`platform_outline`, `canopy_truss`.
+
+### Materials
+
+`concrete`, `steel`.
+
 ## Loop
 
 1. **Evidence** — attach the failed gate report. Extract the failed stage and its
