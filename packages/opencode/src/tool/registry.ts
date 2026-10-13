@@ -289,8 +289,12 @@ const layer = Layer.effect(
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
+      // Gate only the builtin Exa/Parallel-backed websearch, not custom tools that reuse the id.
+      const builtinWebsearch = (yield* InstanceState.get(state)).builtin.find(
+        (item) => item.id === WebSearchTool.id,
+      )
       const filtered = (yield* all()).filter((tool) => {
-        if (tool.id === WebSearchTool.id) {
+        if (tool === builtinWebsearch) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }
 
