@@ -1,5 +1,6 @@
 import { tool } from "@opencode-ai/plugin"
 import { request } from "../lib/blender-client"
+import { recordGate } from "../lib/asset-memory"
 
 export type GateStage = {
   name: string
@@ -34,6 +35,10 @@ export default tool({
       .boolean()
       .default(true)
       .describe("Include the glTF export/re-import comparison stage; disable for fast failure loops"),
+    asset: tool.schema
+      .string()
+      .optional()
+      .describe("Asset name to record this gate result into memory (.axiom3d/memory/assets.json)"),
   },
   async execute(args) {
     const timeout = args.timeout ?? 300
@@ -43,6 +48,9 @@ export default tool({
         { code: args.code, timeout, render: args.render, export_roundtrip: args.export_roundtrip },
         (timeout + 60) * 1000,
       )
+      if (args.asset) {
+        await recordGate(args.asset, report as unknown as Record<string, unknown>).catch(() => {})
+      }
       return JSON.stringify(report, null, 2)
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`

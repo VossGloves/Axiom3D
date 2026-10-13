@@ -18,6 +18,7 @@ export type PortInfo = {
   port: number
   pid: number
   version: string
+  mode: "headless" | "gui"
   last_snapshot: string | null
   poisoned: boolean
 }
@@ -110,6 +111,10 @@ async function pingable(port: number): Promise<boolean> {
 
 async function findBlender(): Promise<string> {
   if (process.env.BLENDER_PATH) return process.env.BLENDER_PATH
+  // Try PATH first (Linux/macOS)
+  const which = Bun.which("blender")
+  if (which) return which
+  // Windows: search Program Files
   const candidates: string[] = []
   try {
     const glob = new Bun.Glob("Blender */blender.exe")
@@ -119,7 +124,7 @@ async function findBlender(): Promise<string> {
     // base dir absent on this machine; fall through to the error below
   }
   const newest = candidates.sort().at(-1)
-  if (!newest) throw new Error("Blender not found under C:/Program Files/Blender Foundation; set BLENDER_PATH")
+  if (!newest) throw new Error("Blender not found; set BLENDER_PATH")
   return newest
 }
 
@@ -152,9 +157,28 @@ async function spawnWorker(): Promise<PortInfo> {
 }
 
 async function ensure(): Promise<PortInfo> {
+  const mode = process.env.AXIOM3D_BLENDER_MODE // "gui" | "headless" | undefined (auto)
   const existing = await portInfo()
-  if (existing && (await pingable(existing.port))) return existing
-  if (existing) tryKill(existing.pid)
+
+  // Attach to existing GUI session if port file alive and mode is gui or auto-detect finds gui
+  if (existing && (await pingable(existing.port))) {
+    if (mode === "gui" || existing.mode === "gui") return existing
+    // Headless mode already running; reuse it
+    if (mode !== "headless") return existing
+  }
+
+  // GUI mode requested but no live session: error (don't spawn headless)
+  if (mode === "gui") {
+    // Check if Blender is even running (any blender process)
+    const stale = existing && !(await pingable(existing.port))
+    const hint = stale
+      ? "Stale port file (server died). Restart Blender, re-enable addon, click Start Server."
+      : "No live Blender GUI session found. Open Blender, enable Axiom3D addon, click Start Server."
+    throw new Error(`AXIOM3D_BLENDER_MODE=gui but ${hint}`)
+  }
+
+  // Kill stale process if we own it (headless only — never kill GUI)
+  if (existing && existing.mode !== "gui") tryKill(existing.pid)
   if (subprocess) {
     subprocess.kill()
     subprocess = null
@@ -163,9 +187,16 @@ async function ensure(): Promise<PortInfo> {
 }
 
 /** Kill the worker (whatever state it is in) and bring up a fresh one, restoring the
- * last snapshot the worker recorded before its last exec. */
+ * last snapshot the worker recorded before its last exec. No-op for GUI sessions. */
 export async function restart(): Promise<void> {
   const previous = await portInfo()
+  // Never kill a GUI session — user owns that process
+  if (previous?.mode === "gui") {
+    throw new Error(
+      "Cannot restart Blender GUI session. " +
+        "Restore manually via blender-checkpoint or restart Blender + reload addon.",
+    )
+  }
   const snapshot = previous?.last_snapshot ?? null
   if (subprocess) {
     subprocess.kill()
@@ -185,11 +216,19 @@ export async function restart(): Promise<void> {
 
 async function call<T>(cmd: string, params: Record<string, unknown>, timeoutMs: number, autoRecover: boolean): Promise<T> {
   const info = await ensure()
+  const isGui = info.mode === "gui"
   let response: Response<T>
   try {
     requestSeq += 1
     response = (await rpc(info.port, JSON.stringify({ id: requestSeq, cmd, params }), timeoutMs)) as Response<T>
   } catch (error) {
+    // GUI: don't restart, surface error with recovery hint
+    if (isGui) {
+      throw new CommandError(
+        `Blender ${cmd} timed out (${String(error)}). GUI session not restarted — ` +
+          "check Blender is responsive, or use blender-checkpoint to restore.",
+      )
+    }
     if (!autoRecover) throw error
     await restart()
     throw new Error(`Blender ${cmd} timed out or worker died (${String(error)}). Worker restarted, scene restored to ${info.last_snapshot ?? "fresh state"}.`)
@@ -197,12 +236,21 @@ async function call<T>(cmd: string, params: Record<string, unknown>, timeoutMs: 
   if (!response.ok) {
     const error = response.error as { type: string; message: string; result?: unknown }
     const poisoned = error.type === "ExecTimeout" || error.type === "WorkerPoisoned"
-    if (poisoned && autoRecover) {
-      await restart()
-      throw new CommandError(
-        `Blender ${cmd} failed: ${error.message} Worker restarted, scene restored to ${info.last_snapshot ?? "fresh state"}.`,
-        error.result,
-      )
+    if (poisoned) {
+      // GUI: don't restart, surface poisoned state
+      if (isGui) {
+        throw new CommandError(
+          `Blender ${cmd} failed: ${error.message} GUI session poisoned — restart Blender or restore via checkpoint.`,
+          error.result,
+        )
+      }
+      if (autoRecover) {
+        await restart()
+        throw new CommandError(
+          `Blender ${cmd} failed: ${error.message} Worker restarted, scene restored to ${info.last_snapshot ?? "fresh state"}.`,
+          error.result,
+        )
+      }
     }
     throw new CommandError(`Blender ${cmd} failed [${error.type}]: ${error.message}`, error.result)
   }
@@ -251,4 +299,9 @@ export async function snapshots(): Promise<string[]> {
   }
 }
 
-export { callRaw as callWithoutRecovery, portInfo as readPortFile }
+/** Call without auto-recovery (GUI sessions, tests that manage restart manually). */
+export async function callWithoutRecovery<T>(cmd: string, params: Record<string, unknown> = {}, timeoutMs = 15_000): Promise<T> {
+  return enqueue(() => call<T>(cmd, params, timeoutMs, false))
+}
+
+export { portInfo as readPortFile }

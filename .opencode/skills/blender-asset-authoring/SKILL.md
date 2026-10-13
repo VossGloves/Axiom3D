@@ -20,9 +20,32 @@ Every claim about the scene comes from a tool, never from memory.
    non-intersecting (the gate flags object overlap): hairline gaps are fine.
 4. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
    stage and re-run until `passed`. `blender-validate` re-checks the current scene
-   without executing; `blender-exec` is for scratch/read-only scripts.
-5. **Critique** — `blender-render` and inspect the attached views against the brief.
-6. **Export** — `blender-export` (glTF default) when a file is requested.
+   without executing; `blender-exec` is for scratch/read-only scripts. Pass
+   `asset: <name>` on every gate call to record the result into memory.
+5. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
+   first: conservative deterministic fixers (naming, scale, UVs, zero-area faces,
+   normals, duplicate verts, unit settings) that snapshot, fix, and revalidate in
+   one call. Design-level issues (degenerate, over_budget, intersections) come back
+   as skipped — those need a source-script rewrite, not a mesh patch.
+6. **Critique** — `blender-render` and inspect the attached views against the brief.
+7. **Export** — `blender-export` (glTF default) when a file is requested.
+8. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into attached
+   GUI session (requires `AXIOM3D_BLENDER_MODE=gui`). Prefer over export+manual
+   import when a live Blender session is attached.
+
+## Memory
+
+`blender-memory` persists in `.axiom3d/memory/` (presets, assets, fixes). At the
+start of a brief: `presets.list` + `assets.get <name>` to reuse prior params and
+learn why the last gate failed. After success: `presets.save` the param set.
+`fixes.list` shows which repair strategies historically worked.
+
+## Routing (axiom3d director)
+
+The `axiom3d` director delegates: brief→plan to `axiom3d-planner`, script work and
+syntax/api/exec failures to `axiom3d-modeller`, scene-stage repair to
+`axiom3d-repair`, final critique to `axiom3d-reviewer`. Call specialists via the
+`task` tool with the evidence they need — they cannot see your conversation.
 
 ## Gate stages
 

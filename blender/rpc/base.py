@@ -48,6 +48,7 @@ def write_port_file():
         "port": write_port_file.port,
         "pid": os.getpid(),
         "version": STATE["version"],
+        "mode": STATE.get("mode", "headless"),
         "last_snapshot": STATE["last_snapshot"],
         "poisoned": STATE["poisoned"],
     }

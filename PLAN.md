@@ -212,6 +212,27 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   tests and maintenance for no current consumer. Noted as a clean future path if the
   harness is ever reused by non-opencode MCP clients.
 
+### Phase 7 — GUI mode (attach to running Blender)
+- [x] Extract transport from `worker.py` into `blender/transport.py`: socket server,
+  JOBS queue, Handler, pump parameterized by mode (background blocking loop vs GUI
+  `bpy.app.timers`). Port file gains `mode: "headless"|"gui"`.
+- [x] `blender/addon.py`: GUI addon with N-panel (Start/Stop, port, poison status),
+  auto-start timer on enable. Refuses `bpy.app.background`. Imports transport + rpc.
+- [x] `blender-client.ts` attach mode: `ensure()` pings port file → attach if live GUI
+  session, else spawn headless. `AXIOM3D_BLENDER_MODE=gui|headless` forces mode; unset
+  auto-detects from port file. GUI mode: no kill/restart on timeout — surface error
+  with recovery hint (user owns GUI process). `restart()` throws for GUI.
+- Install: symlink `blender/addon.py` into Blender addons folder as `axiom3d.py`,
+  enable in Preferences. Server listens on ephemeral port, writes port file, client
+  attaches on next tool call.
+- Safety deltas: GUI sessions never auto-restart (user process); poisoned state
+  surfaced but not auto-recovered; snapshot-restore of unsaved work requires manual
+  `blender-checkpoint` call.
+- [x] `blender-open` tool (`.opencode/tools/blender-open.ts`): opens .blend as main
+  file or imports .glb/.gltf/.fbx/.obj/.usd/.ply/.stl directly into attached GUI
+  session. Requires GUI mode; errors if headless. AI prefers this over export+manual
+  import when session attached.
+
 ## Verification
 
 - `bun test --parallel=1 --no-isolate` from `blender/` (spawns a real headless Blender;
