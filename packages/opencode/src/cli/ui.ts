@@ -1,6 +1,6 @@
 import { EOL } from "os"
 import { Schema } from "effect"
-import { logo as glyphs } from "./logo"
+import { go as glyphs } from "./logo"
 
 const wordmark = [
   `⠀                                ▄     `,
