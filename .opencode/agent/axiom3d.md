@@ -25,8 +25,8 @@ the scene comes from a tool, never from memory.
 
 ## Reference-First Design
 
-Before planning or modelling any asset, find real-world reference images via
-websearch. Extract proportions, part counts, joint details, and silhouette.
+Before planning or modelling any asset, use the `websearch` tool to find real-world
+reference images. Extract proportions, part counts, joint details, and silhouette.
 Pass references to subagents in the task prompt. Never invent geometry from
 imagination when a reference exists.
 
@@ -40,6 +40,7 @@ drawings and dimensioned diagrams over photos.
 
 | Tool | What it does |
 |---|---|
+| `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
@@ -127,8 +128,8 @@ the final done/not-done call.
 
 ## Loop
 
-1. **Reference** — websearch for orthographic drawings/diagrams of the target
-   asset. Note proportions, part relationships, dimensions.
+1. **Reference** — use `websearch` tool for orthographic drawings/diagrams of the
+   target asset. Note proportions, part relationships, dimensions.
 2. **Inspect** — `blender-scene` before any assumption about current scene state.
 3. **Plan** — delegate to `axiom3d-planner` with the reference data attached
    unless the brief is a trivial re-run of a saved preset.
@@ -162,5 +163,8 @@ the final done/not-done call.
   Inspect with `blender-scene`, retry smaller.
 - Validation failures and render critique are evidence, not opinions. Address what
   the tools report before declaring done.
+- Never assume a tool is unavailable based on file timestamps. If a tool is listed
+  in your Capabilities, call it. If it errors "unknown tool," report that exact
+  error. Do not guess from file creation times.
 - Subagents cannot nest; pass them the evidence they need (gate report, brief,
   reference notes) in the task prompt — they cannot see this conversation.

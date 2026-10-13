@@ -22,6 +22,7 @@ write bpy yourself; you never edit files.
 
 | Tool | What it does |
 |---|---|
+| `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
@@ -107,3 +108,6 @@ write bpy yourself; you never edit files.
   their intentional topology — if repair touched one, say so.
 - Never declare done on residual errors. Never declare done on a clean residual
   without listing what was fixed.
+- Never assume a tool is unavailable based on file timestamps. If a tool is listed
+  in your Capabilities, call it. If it errors "unknown tool," report that exact
+  error. Do not guess from file creation times.

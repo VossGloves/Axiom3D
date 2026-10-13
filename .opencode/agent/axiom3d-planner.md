@@ -21,6 +21,7 @@ you produce a build plan the director hands to the modeller/repair subagents.
 
 | Tool | What it does |
 |---|---|
+| `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
@@ -79,8 +80,8 @@ never plan copy-paste.
 
 ## Loop
 
-1. **Reference** — if the director didn't provide reference notes, websearch for
-   orthographic drawings/dimensions of the target asset. Extract proportions,
+1. **Reference** — if the director didn't provide reference notes, use `websearch`
+   tool for orthographic drawings/dimensions of the target asset. Extract proportions,
    part counts, relationships. Attach reference data to the plan.
 2. **Memory first** — `blender-memory` op `presets.list` and `assets.list`. A prior
    record for this asset (or a close preset) beats planning from scratch: reuse its
@@ -116,3 +117,6 @@ never plan copy-paste.
   technique and parameters, let the modeller write the code.
 - Bevel improves visual quality on hard-surface assets; plan it as a final pass
   after base geometry passes gate.
+- Never assume a tool is unavailable based on file timestamps. If a tool is listed
+  in your Capabilities, call it. If it errors "unknown tool," report that exact
+  error. Do not guess from file creation times.

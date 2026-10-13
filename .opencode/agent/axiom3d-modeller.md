@@ -22,6 +22,7 @@ You never mutate the scene directly — the director runs your code through `ble
 
 | Tool | What it does |
 |---|---|
+| `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
@@ -124,3 +125,6 @@ Materials: `concrete`, `steel`.
 - One risky mutation per script when recovery matters; the gate snapshots per run.
 - Scene-stage failures (geometry/mesh_quality) are NOT yours unless the director
   says the design must change — repair fixes those, you rewrite only on its report.
+- Never assume a tool is unavailable based on file timestamps. If a tool is listed
+  in your Capabilities, call it. If it errors "unknown tool," report that exact
+  error. Do not guess from file creation times.
