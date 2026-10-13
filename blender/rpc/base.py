@@ -19,7 +19,18 @@ LOG_FILE = os.path.join(AXIOM_DIR, "worker.log")
 SNAP_KEEP = 10
 
 # bpy is main-thread-only: handler threads enqueue jobs, the main thread pumps them.
-STATE = {"started": time.monotonic(), "poisoned": False, "last_snapshot": None, "seq": 0, "version": ""}
+# poisoned_at: monotonic time the session was marked poisoned (auto-clears once the
+# main thread is free for UNPOISON_IDLE_S). manual_stop: intentional Stop Server —
+# the GUI timer must not auto-restart until Start Server is clicked again.
+STATE = {
+    "started": time.monotonic(),
+    "poisoned": False,
+    "poisoned_at": None,
+    "manual_stop": False,
+    "last_snapshot": None,
+    "seq": 0,
+    "version": "",
+}
 PORT_LOCK = threading.Lock()
 
 
@@ -68,7 +79,11 @@ def call_op(op, **kwargs):
 
 def require_live(operation):
     if STATE["poisoned"] and operation != "ping":
-        raise WorkerError("WorkerPoisoned", "worker poisoned by timed-out exec; client must restart it")
+        raise WorkerError(
+            "WorkerPoisoned",
+            "session poisoned by timed-out exec; waits for main thread to free "
+            "(auto-recovers). Retry shortly — no Blender restart needed.",
+        )
 
 
 def scene_summary():

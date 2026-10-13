@@ -113,11 +113,13 @@ describe("render and export", () => {
 })
 
 describe("watchdog", () => {
-  test("hung exec triggers restart + snapshot restore", async () => {
+  test("hung pure-Python exec is soft-interrupted without worker restart", async () => {
     const before = await objects()
     expect(before.objects.some((o) => o.name === "crate_test")).toBe(true)
 
-    await expect(exec("while True:\n    pass", { timeout: 1 })).rejects.toThrow(/restarted/)
+    // Soft signal timeout catches `while True` before the hard poison path, so
+    // the worker stays up and the client does not need to restart + restore.
+    await expect(exec("while True:\n    pass", { timeout: 1 })).rejects.toThrow(/ExecTimeout|soft timeout/)
 
     const { info } = await status()
     expect(info.poisoned).toBe(false)

@@ -86,13 +86,40 @@ def cmd_exec(params):
         "__name__": "__axiom3d_exec__",
     }
 
+    timeout_s = min(max(float(params.get("timeout", 30)), 1), 600)
+
     old_out, old_err = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = out, err
     started = time.monotonic()
+
+    # Soft wall-clock timeout for pure-Python hangs (while True: pass). Interrupts
+    # Python bytecode on the main thread; cannot interrupt a stuck C/bpy call —
+    # that still relies on the transport poison + auto-unpoison path.
+    def _soft_timeout(signum, frame):
+        raise TimeoutError(f"exec exceeded soft timeout of {timeout_s:.0f}s")
+
+    timer_armed = False
+    old_handler = None
+    try:
+        import signal
+
+        old_handler = signal.signal(signal.SIGALRM, _soft_timeout)
+        signal.setitimer(signal.ITIMER_REAL, timeout_s)
+        timer_armed = True
+    except (ValueError, OSError):
+        # Not on main thread or signals unavailable — fall back to hard timeout only.
+        old_handler = None
+
     try:
         exec(compile(code, "<axiom3d>", "exec"), namespace)
     except SystemExit:
         error = None
+    except TimeoutError as exc:
+        error = {
+            "type": "ExecTimeout",
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        }
     except BaseException as exc:  # noqa: BLE001 - report any script failure verbatim
         error = {
             "type": type(exc).__name__,
@@ -100,6 +127,10 @@ def cmd_exec(params):
             "traceback": traceback.format_exc(),
         }
     finally:
+        if timer_armed:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            if old_handler is not None:
+                signal.signal(signal.SIGALRM, old_handler)
         sys.stdout, sys.stderr = old_out, old_err
     duration_ms = int((time.monotonic() - started) * 1000)
 

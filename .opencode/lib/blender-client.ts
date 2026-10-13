@@ -1,8 +1,9 @@
 /// <reference path="../env.d.ts" />
 // Persistent headless Blender worker client for Axiom3D.
 // Spawns `blender --background --python blender/worker.py`, talks newline JSON over TCP.
-// Safety: per-call timeout; on timeout or a poisoned worker it kills, respawns, and
-// restores the pre-exec snapshot so a bad script never leaves the scene wrecked.
+// Safety: per-call timeout; pure-Python hangs soft-interrupt via SIGALRM; hard poison
+// auto-clears on GUI when the main thread frees. Dead GUI addon TCP falls back to a
+// separate headless worker so tools keep working without a Blender restart.
 
 import net from "node:net"
 import { join } from "node:path"
@@ -109,6 +110,36 @@ async function pingable(port: number): Promise<boolean> {
   }
 }
 
+/** True if a pid is still a live process we can signal (ESRCH when dead). */
+function pidAlive(pid: number | undefined): boolean {
+  if (!pid) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Drop a stale port file so the next ensure() does not trust a dead worker. */
+async function clearPortFile() {
+  try {
+    await Bun.write(PORT_FILE, "")
+  } catch {
+    // best-effort; portInfo() already treats unreadable as null
+  }
+}
+
+/** Ping with short retries — covers the window where the worker just bound its
+ * socket (GUI auto-start / headless spawn) or a transient refused connection. */
+async function pingableWithRetry(port: number, attempts = 4): Promise<boolean> {
+  for (let i = 0; i < attempts; i += 1) {
+    if (await pingable(port)) return true
+    await sleep(150)
+  }
+  return false
+}
+
 async function findBlender(): Promise<string> {
   if (process.env.BLENDER_PATH) return process.env.BLENDER_PATH
   // Try PATH first (Linux/macOS)
@@ -158,20 +189,45 @@ async function spawnWorker(): Promise<PortInfo> {
 
 async function ensure(): Promise<PortInfo> {
   const mode = process.env.AXIOM3D_BLENDER_MODE // "gui" | "headless" | undefined (auto)
-  const existing = await portInfo()
+  let existing = await portInfo()
 
-  // Attach to existing GUI session if port file alive and mode is gui or auto-detect finds gui
-  if (existing && (await pingable(existing.port))) {
-    if (mode === "gui" || existing.mode === "gui") return existing
+  // Stale port file from a Blender process that is gone: clear it so we do not
+  // keep reporting "server died, restart Blender" against a dead pid.
+  if (existing && !pidAlive(existing.pid)) {
+    await clearPortFile()
+    existing = null
+  }
+
+  // Attach to live session if port file alive and mode is gui or auto-detect finds gui
+  if (existing && (await pingableWithRetry(existing.port))) {
+    if (mode === "gui" || existing.mode === "gui") {
+      // Prefer the live GUI session; shut down any headless fallback we spawned.
+      if (subprocess && existing.mode === "gui") {
+        subprocess.kill()
+        subprocess = null
+      }
+      return existing
+    }
     // Headless mode already running; reuse it
     if (mode !== "headless") return existing
   }
 
-  // GUI mode requested but no live session: error (don't spawn headless)
-  if (mode === "gui") {
-    // Check if Blender is even running (any blender process)
-    const stale = existing && !(await pingable(existing.port))
-    const hint = stale
+  // Live GUI Blender but addon TCP dead (server crashed / never started): fall
+  // back to a headless worker so tools keep working. The GUI timer also
+  // self-heals the addon server; once it is back, the next session prefers GUI.
+  const guiAlive = existing?.mode === "gui" && pidAlive(existing.pid)
+  if (guiAlive) {
+    const allowFallback = process.env.AXIOM3D_NO_HEADLESS_FALLBACK !== "1"
+    if (mode === "gui" && !allowFallback) {
+      throw new Error(
+        `AXIOM3D_BLENDER_MODE=gui but addon server is down (Blender pid ${existing.pid} alive). ` +
+          "Open Blender, click Start Server on the Axiom3D panel. " +
+          "To allow a headless fallback worker instead, unset AXIOM3D_NO_HEADLESS_FALLBACK.",
+      )
+    }
+    // Fall through: never kill the GUI process; spawn a separate headless worker.
+  } else if (mode === "gui") {
+    const hint = existing
       ? "Stale port file (server died). Restart Blender, re-enable addon, click Start Server."
       : "No live Blender GUI session found. Open Blender, enable Axiom3D addon, click Start Server."
     throw new Error(`AXIOM3D_BLENDER_MODE=gui but ${hint}`)
@@ -214,6 +270,25 @@ export async function restart(): Promise<void> {
   }
 }
 
+/** Wait for a GUI session to auto-unpoison (main thread free again). Returns true
+ * if it recovered within the budget. Headless is not handled here — it restarts. */
+async function waitForGuiUnpoison(port: number, budgetMs = 20_000): Promise<boolean> {
+  const deadline = Date.now() + budgetMs
+  while (Date.now() < deadline) {
+    try {
+      const response = await rpc(port, JSON.stringify({ id: 0, cmd: "ping", params: {} }), 2000)
+      if (response.ok === true) {
+        const result = response.result as { poisoned?: boolean } | undefined
+        if (result && result.poisoned === false) return true
+      }
+    } catch {
+      // server briefly busy; keep polling until budget expires
+    }
+    await sleep(500)
+  }
+  return false
+}
+
 async function call<T>(cmd: string, params: Record<string, unknown>, timeoutMs: number, autoRecover: boolean): Promise<T> {
   const info = await ensure()
   const isGui = info.mode === "gui"
@@ -222,11 +297,18 @@ async function call<T>(cmd: string, params: Record<string, unknown>, timeoutMs: 
     requestSeq += 1
     response = (await rpc(info.port, JSON.stringify({ id: requestSeq, cmd, params }), timeoutMs)) as Response<T>
   } catch (error) {
-    // GUI: don't restart, surface error with recovery hint
+    // GUI: don't restart the user's Blender; wait for auto-unpoison or surface a hint
     if (isGui) {
+      const recovered = await waitForGuiUnpoison(info.port)
+      if (recovered) {
+        throw new CommandError(
+          `Blender ${cmd} timed out (${String(error)}) but the GUI session recovered on its own. ` +
+            "Retry the command — no Blender restart needed.",
+        )
+      }
       throw new CommandError(
-        `Blender ${cmd} timed out (${String(error)}). GUI session not restarted — ` +
-          "check Blender is responsive, or use blender-checkpoint to restore.",
+        `Blender ${cmd} timed out (${String(error)}). GUI session still busy or unresponsive — ` +
+          "wait for Blender to free the main thread, or use blender-checkpoint to restore.",
       )
     }
     if (!autoRecover) throw error
@@ -235,12 +317,21 @@ async function call<T>(cmd: string, params: Record<string, unknown>, timeoutMs: 
   }
   if (!response.ok) {
     const error = response.error as { type: string; message: string; result?: unknown }
-    const poisoned = error.type === "ExecTimeout" || error.type === "WorkerPoisoned"
+    // Soft timeout (signal) leaves the worker healthy — only poison when the
+    // transport says the main thread is still stuck inside the job.
+    const poisoned =
+      error.type === "WorkerPoisoned" ||
+      (error.type === "ExecTimeout" && String(error.message).includes("still running"))
     if (poisoned) {
-      // GUI: don't restart, surface poisoned state
+      // GUI: wait for auto-unpoison instead of demanding a Blender restart
       if (isGui) {
+        const recovered = await waitForGuiUnpoison(info.port)
+        if (recovered) {
+          throw new CommandError(`Blender ${cmd} failed: ${error.message} Session recovered — retry.`, error.result)
+        }
         throw new CommandError(
-          `Blender ${cmd} failed: ${error.message} GUI session poisoned — restart Blender or restore via checkpoint.`,
+          `Blender ${cmd} failed: ${error.message} GUI session still poisoned — ` +
+            "wait for the main thread to free (auto-recovers) or restart Blender.",
           error.result,
         )
       }
