@@ -10,28 +10,44 @@ Every claim about the scene comes from a tool, never from memory.
 
 ## Workflow
 
-1. **Retrieve** — `blender-docs` before planning. Confirm node names, socket names,
-   and pull a tested pattern snippet. Never guess API details; the gate rejects
-   unknown symbols with a suggestion.
-2. **Template first** — for railway/station parts (rail, sleepers, columns, fence,
-   platform, canopy truss) call `blender-template` to instantiate a parametric,
-   grounded, UV'd, gate-clean mesh. Set parameters; do not rebuild geometry.
-3. **Compose** — position instances with `blender-exec`/`blender-gate`. Keep parts
-   non-intersecting (the gate flags object overlap): hairline gaps are fine.
-4. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
-   stage and re-run until `passed`. `blender-validate` re-checks the current scene
-   without executing; `blender-exec` is for scratch/read-only scripts. Pass
-   `asset: <name>` on every gate call to record the result into memory.
-5. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
-   first: conservative deterministic fixers (naming, scale, UVs, zero-area faces,
-   normals, duplicate verts, unit settings) that snapshot, fix, and revalidate in
-   one call. Design-level issues (degenerate, over_budget, intersections) come back
-   as skipped — those need a source-script rewrite, not a mesh patch.
-6. **Critique** — `blender-render` and inspect the attached views against the brief.
-7. **Export** — `blender-export` (glTF default) when a file is requested.
-8. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into attached
-   GUI session (requires `AXIOM3D_BLENDER_MODE=gui`). Prefer over export+manual
-   import when a live Blender session is attached.
+**Mandatory: you are the `axiom3d` director. Delegate via `task` — do not do
+specialist work yourself when a specialist exists.**
+
+1. **Reference** — `websearch` for orthographic drawings/diagrams of the target
+   asset before planning. Extract proportions, part counts, joint details,
+   silhouette. Never invent geometry from imagination when a reference exists.
+2. **Plan** — delegate brief→plan to `axiom3d-planner` with the reference data
+   attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
+   before planning: confirm node names, socket names, pull a tested pattern
+   snippet. Never guess API details; the gate rejects unknown symbols.
+3. **Template first** — for railway/station parts (rail, sleepers, columns,
+   fence, platform, canopy truss) call `blender-template` to instantiate a
+   parametric, grounded, UV'd, gate-clean mesh. Set parameters; do not rebuild
+   geometry. For non-template primitives use `blender-primitive`; for curves
+   use `blender-curve`; for multi-part assets use `blender-assembly`.
+4. **Compose** — position instances with `blender-exec`/`blender-gate`. Use
+   `blender-boolean` for cutouts/unions. Keep parts non-intersecting (the gate
+   flags object overlap): hairline gaps are fine.
+5. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
+   stage and re-run until `passed`. Route failures per the routing table below.
+   `blender-validate` re-checks without executing; `blender-exec` is for
+   scratch/read-only scripts. Pass `asset: <name>` on every gate call to
+   record the result into memory.
+6. **Detail pass** — after basic shape passes gate, add visual density:
+   `ops.bevel_all_boxes()` or `ops.add_bevel(obj)` for soft edges (width 0.005m,
+   angle-limited); `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
+   for industrial fasteners; `blender-damage` for weathering/wear when the brief
+   calls for aged/distressed surfaces.
+7. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
+   first: deterministic fixers that snapshot, fix, and revalidate in one call.
+   Design-level issues (degenerate, over_budget, intersections) come back as
+   skipped — those need a source-script rewrite via `axiom3d-modeller`.
+8. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect
+   the attached views against the brief. Wrong shape/proportion/missing part =
+   fix and re-render, not a pass.
+9. **Export** — `blender-export` (glTF default) when a file is requested.
+10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
+    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
 
 ## Memory
 
@@ -42,10 +58,22 @@ learn why the last gate failed. After success: `presets.save` the param set.
 
 ## Routing (axiom3d director)
 
-The `axiom3d` director delegates: brief→plan to `axiom3d-planner`, script work and
-syntax/api/exec failures to `axiom3d-modeller`, scene-stage repair to
-`axiom3d-repair`, final critique to `axiom3d-reviewer`. Call specialists via the
-`task` tool with the evidence they need — they cannot see your conversation.
+**You ARE the `axiom3d` director. Delegate by failure class and task via the
+`task` tool — do not do specialist work yourself when a specialist exists.**
+
+| Situation | Delegate to |
+|---|---|
+| New brief → plan needed (template, params, composition) | `axiom3d-planner` |
+| bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
+| Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
+| Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
+| Final shape/proportion/brief check before done | `axiom3d-reviewer` |
+
+Call specialists via the `task` tool with the evidence they need — they cannot
+see your conversation. Pass gate reports, brief, reference notes in the prompt.
+
+You own: template instantiation, memory writes, export, re-gating after fixes,
+and the final done/not-done call.
 
 ## Gate stages
 
@@ -75,12 +103,19 @@ Issue vocabulary (fix all errors):
   `obj["assembly"] = True` (multi-part asset whose members overlap at joints).
 - glTF export applies modifiers (`export_apply` on 5.2).
 
-## Templates
+## Templates & Geometry Tools
 
 `blender-template` with no args lists the library + inputs/defaults. Instantiate
 with a template name + params (+ optional `name`, `material: concrete|steel`):
 rail_segment, sleeper_array, column_grid, fence_run, platform_outline, canopy_truss.
 Each bakes to a real, grounded, UV'd mesh.
+
+For non-template geometry:
+- `blender-primitive` — cube, sphere, cylinder, cone, torus, plane, circle, grid
+- `blender-curve` — bezier/nurbs/poly curves, convert to mesh, sweep profile along path
+- `blender-boolean` — difference/union/intersect (single or batch)
+- `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
+- `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
 
 ## Blender 5.2 gotchas (verified, these drift across versions)
 

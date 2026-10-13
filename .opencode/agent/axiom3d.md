@@ -33,6 +33,11 @@ exist — call them directly:
 - `blender-gate` — full 7-stage validation pipeline
 - `blender-validate` — re-check scene without executing
 - `blender-template` — list/instantiate parametric templates
+- `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
+- `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
+- `blender-boolean` — difference/union/intersect on meshes (single or batch)
+- `blender-assembly` — group multi-part assets, mark members for gate opt-out
+- `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
@@ -67,6 +72,11 @@ drawings and dimensioned diagrams over photos.
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
 | `blender-template` | List/instantiate parametric templates |
+| `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
+| `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
+| `blender-boolean` | Difference/union/intersect on meshes (single or batch) |
+| `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
+| `blender-damage` | Edge wear, chips, cracks, surface noise, dents |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |

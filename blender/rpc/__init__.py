@@ -1,10 +1,25 @@
 """RPC command registry. Handlers never touch sockets; worker.py owns the transport
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
 the pump), exec, snapshot, restore, reset, query, render, export, validate, gate,
-list_templates, instantiate, docs, repair."""
+list_templates, instantiate, docs, repair, primitives, curves, booleans, assemblies,
+damage."""
 
 from rpc.base import ExecScriptError, WorkerError, require_live
-from rpc import docs, export, gate, render, repair, session, templates, validate
+from rpc import (
+    assemblies,
+    booleans,
+    curves,
+    damage,
+    docs,
+    export,
+    gate,
+    primitives,
+    render,
+    repair,
+    session,
+    templates,
+    validate,
+)
 
 COMMANDS = {
     "exec": session.cmd_exec,
@@ -20,6 +35,22 @@ COMMANDS = {
     "instantiate": templates.cmd_instantiate,
     "docs": docs.cmd_docs,
     "repair": repair.cmd_repair,
+    "create_primitive": primitives.cmd_create_primitive,
+    "create_curve": curves.cmd_create_curve,
+    "convert_curve_to_mesh": curves.cmd_convert_curve_to_mesh,
+    "sweep_curve": curves.cmd_sweep_curve,
+    "run_boolean": booleans.cmd_run_boolean,
+    "batch_boolean": booleans.cmd_batch_boolean,
+    "create_assembly": assemblies.cmd_create_assembly,
+    "list_assemblies": assemblies.cmd_list_assemblies,
+    "dissolve_assembly": assemblies.cmd_dissolve_assembly,
+    "mark_assembly": assemblies.cmd_mark_assembly,
+    "apply_damage": damage.cmd_apply_damage,
+    "edge_wear": damage.cmd_edge_wear,
+    "chips": damage.cmd_chips,
+    "cracks": damage.cmd_cracks,
+    "surface_noise": damage.cmd_surface_noise,
+    "dents": damage.cmd_dents,
 }
 
 
