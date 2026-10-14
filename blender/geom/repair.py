@@ -7,8 +7,9 @@ for assets this module targets. Scripts that leave live modifiers must bake firs
 
 Respects the declared-intent opt-outs: objects with ``open_surface`` keep their
 open boundaries, ``assembly`` members are never separated or booleaned. Design-level
-issues (degenerate, over_budget, self/object intersections) are never auto-fixed —
-they change design intent and are reported as skipped for the agent to resolve.
+issues (degenerate, over_budget, self/object intersections, floating_component)
+are never auto-fixed — they change design intent and are reported as skipped for
+the agent to resolve.
 
 Issue codes here mirror geom/checks.py exactly; renames break the gate report
 contract and the memory fix store.
@@ -113,9 +114,9 @@ def _repair_object(obj, wanted, fixed, skipped):
         if wants(code) and _detect_skipped(obj, code):
             log_skipped(code, "design-level issue; fix by editing the source script, not the mesh")
     if wanted is not None:
-        for code in ("self_intersection", "object_intersection"):
+        for code in ("self_intersection", "object_intersection", "floating_component"):
             if code in wanted:
-                log_skipped(code, "design-level issue; reposition or boolean the source geometry")
+                log_skipped(code, "design-level issue; reposition source geometry")
 
 
 def _repair_scene_settings(wanted, fixed, skipped):

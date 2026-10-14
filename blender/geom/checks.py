@@ -13,7 +13,9 @@ intersection checks. Intersections use Blender 5.x's native MANIFOLD boolean via
 temporary modifier — evaluated through the depsgraph, no operator context needed,
 no subprocess. Self-intersection = two connected components of one mesh that
 overlap (the classic "jammed two primitives together without a boolean" failure);
-cross-object = any overlapping pair in the scene.
+cross-object = any overlapping pair in the scene. floating_component = components
+in one mesh form disconnected touch-groups (a part gap; assembly opt-out does not
+apply — gaps are never a valid joint).
 """
 
 import re
@@ -141,8 +143,6 @@ def mesh_quality_report(volume_epsilon=1e-6):
     pair_checks = 0
     for name, (shape, verts, tris) in local_shapes.items():
         obj = bpy.data.objects.get(name)
-        if obj is not None and "assembly" in obj:
-            continue  # multi-part asset whose members overlap at joints by design
         groups = _face_components(shape)
         if len(groups) < 2:
             continue
@@ -154,6 +154,16 @@ def mesh_quality_report(volume_epsilon=1e-6):
         for group in groups:
             ids = _unique_face_verts(shape, group)
             component_bounds.append(_verts_bounds([verts[i] for i in ids]))
+        # Gaps are never a valid joint: joined parts must touch (AABB contact).
+        # assembly=True opts out of overlap checks only, not connectivity.
+        if _touch_groups(component_bounds) > 1 and not (obj is not None and obj.get("disconnected_parts")):
+            add(
+                name,
+                "floating_component",
+                "components form disconnected groups (part gap); reposition so faces touch",
+            )
+        if obj is not None and "assembly" in obj:
+            continue  # multi-part asset whose members overlap at joints by design
         for i in range(len(component_bounds)):
             for j in range(i + 1, len(component_bounds)):
                 if _bounds_overlap(component_bounds[i], component_bounds[j]):
@@ -237,6 +247,25 @@ def _bounds_overlap(first, second, padding=1e-9):
         first[0][i] <= second[1][i] + padding and second[0][i] <= first[1][i] + padding
         for i in range(3)
     )
+
+
+def _touch_groups(component_bounds):
+    """Connected groups of components whose AABBs touch or overlap (union-find)."""
+    parent = list(range(len(component_bounds)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i in range(len(component_bounds)):
+        for j in range(i + 1, len(component_bounds)):
+            if _bounds_overlap(component_bounds[i], component_bounds[j]):
+                left, right = find(i), find(j)
+                if left != right:
+                    parent[left] = right
+    return len({find(i) for i in range(len(component_bounds))})
 
 
 def _boolean_intersect_volume(source, target):

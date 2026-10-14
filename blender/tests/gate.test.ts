@@ -196,6 +196,68 @@ bpy.context.active_object.name = "block_east"
       ),
     ).toBe(true)
   })
+
+  test("joined shells with a gap fail with floating_component", async () => {
+    const report = await gate(`
+import bmesh
+import mathutils
+mesh = bpy.data.meshes.new("gapped")
+bm = bmesh.new()
+bmesh.ops.create_cube(bm, size=1.0)
+bmesh.ops.create_cube(bm, size=1.0, matrix=mathutils.Matrix.Translation((1.01, 0, 0)))
+bm.to_mesh(mesh)
+bm.free()
+obj = bpy.data.objects.new("bench_gapped", mesh)
+bpy.context.scene.collection.objects.link(obj)
+`)
+    const quality = stage(report, "mesh_quality")
+    expect(quality.issues?.some((entry) => entry.issue === "floating_component" && entry.object === "bench_gapped")).toBe(
+      true,
+    )
+    expect(quality.passed).toBe(false)
+  })
+
+  test("joined face-touching assembly passes mesh quality", async () => {
+    const report = await gate(`
+import bmesh
+import mathutils
+mesh = bpy.data.meshes.new("touching")
+bm = bmesh.new()
+bmesh.ops.create_cube(bm, size=1.0)
+bmesh.ops.create_cube(bm, size=1.0, matrix=mathutils.Matrix.Translation((1.0, 0, 0)))
+bm.to_mesh(mesh)
+bm.free()
+obj = bpy.data.objects.new("crate_touching", mesh)
+obj["assembly"] = True
+bpy.context.scene.collection.objects.link(obj)
+`)
+    const quality = stage(report, "mesh_quality")
+    expect((quality.issues ?? []).some((entry) => entry.issue === "floating_component")).toBe(false)
+    expect(quality.passed).toBe(true)
+  })
+
+  test("assembly opt-out does not hide floating_component", async () => {
+    const report = await gate(`
+import bmesh
+import mathutils
+mesh = bpy.data.meshes.new("gapped_assembly")
+bm = bmesh.new()
+bmesh.ops.create_cube(bm, size=1.0)
+bmesh.ops.create_cube(bm, size=1.0, matrix=mathutils.Matrix.Translation((1.01, 0, 0)))
+bm.to_mesh(mesh)
+bm.free()
+obj = bpy.data.objects.new("bench_assembly_gapped", mesh)
+obj["assembly"] = True
+bpy.context.scene.collection.objects.link(obj)
+`)
+    const quality = stage(report, "mesh_quality")
+    expect(
+      quality.issues?.some(
+        (entry) => entry.issue === "floating_component" && entry.object === "bench_assembly_gapped",
+      ),
+    ).toBe(true)
+    expect(quality.passed).toBe(false)
+  })
 })
 
 describe("gate full pipeline", () => {

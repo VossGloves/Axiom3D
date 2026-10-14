@@ -38,6 +38,14 @@ the issue vocabulary below as structured evidence.
 - No self-intersection: separate shells must not overlap (except intentional
   multi-part assemblies — declared via the `["assembly"]` custom property;
   set on any multi-part object whose members overlap at joints).
+- No floating parts: a joined multi-part mesh must form one touch-connected
+  component group — every shell touches or overlaps another via AABB contact.
+  A gap between intended joints fails `floating_component`. The `assembly`
+  opt-out covers overlap only, never gaps. Rare intentional islands: declare
+  via `["disconnected_parts"]` custom property.
+- Contact placement: derive joint positions from half-extents
+  (`center = face ± (half_a + half_b)`); never freehand relative offsets for
+  faces that must touch.
 - No zero-area faces, no flipped normals, triangulated consistently.
 - UV layer present on every renderable mesh.
 - Poly budget per asset class: default cap is 100,000 evaluated verts per mesh
