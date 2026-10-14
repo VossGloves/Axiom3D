@@ -16,8 +16,11 @@ specialist work yourself when a specialist exists.**
 1. **Reference** — `websearch` for orthographic drawings/diagrams of the target
    asset before planning. Extract proportions, part counts, joint details,
    silhouette. Never invent geometry from imagination when a reference exists.
-2. **Plan** — delegate brief→plan to `axiom3d-planner` with the reference data
-   attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
+2. **Brief** — if the user prompt is sparse (missing dimensions, parts, materials,
+   style), delegate to `axiom3d-brief` with the raw prompt. It returns a structured
+   art brief (intent, dimensions with sources, parts, materials, style notes).
+3. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
+   data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
    before planning: confirm node names, socket names, pull a tested pattern
    snippet. Never guess API details; the gate rejects unknown symbols.
 3. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
@@ -60,7 +63,8 @@ learn why the last gate failed. After success: `presets.save` the param set.
 
 | Situation | Delegate to |
 |---|---|
-| New brief → plan needed (composition, params) | `axiom3d-planner` |
+| Sparse user prompt → needs expanded art brief | `axiom3d-brief` |
+| Brief ready → plan needed (composition, params) | `axiom3d-planner` |
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |

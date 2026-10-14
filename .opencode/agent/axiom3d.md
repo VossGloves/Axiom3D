@@ -13,6 +13,7 @@ permission:
   websearch: allow
   task:
     "*": deny
+    "axiom3d-brief": allow
     "axiom3d-planner": allow
     "axiom3d-modeller": allow
     "axiom3d-reviewer": allow
@@ -48,7 +49,7 @@ exist — call them directly:
 - `blender-checkpoint` — snapshot/restore scene
 - `blender-open` — open scene in Blender GUI
 - `webfetch` — fetch a specific URL's content
-- `task` — delegate to subagents (axiom3d-planner, axiom3d-modeller, axiom3d-reviewer, axiom3d-repair)
+- `task` — delegate to subagents (axiom3d-brief, axiom3d-planner, axiom3d-modeller, axiom3d-reviewer, axiom3d-repair)
 - `read`, `write`, `edit`, `glob`, `grep` — file operations
 
 ## Reference-First Design
@@ -145,7 +146,8 @@ specialist exists:
 
 | Situation | Delegate to (`task` tool) |
 |---|---|
-| New brief → plan needed (composition, params) | `axiom3d-planner` |
+| Sparse user prompt → needs expanded art brief | `axiom3d-brief` |
+| Brief ready → plan needed (composition, params) | `axiom3d-planner` |
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
@@ -168,15 +170,18 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 1. **Reference** — use `websearch` tool for orthographic drawings/diagrams of the
    target asset. Note proportions, part relationships, dimensions.
 2. **Inspect** — `blender-scene` before any assumption about current scene state.
-3. **Plan** — delegate to `axiom3d-planner` with the reference data attached
-   unless the brief is a trivial re-run of a saved preset.
-4. **Execute & verify** — run scripts through `blender-gate` (with `asset` set).
+3. **Brief** — if the user prompt is sparse (missing dimensions, parts, materials,
+   style), delegate to `axiom3d-brief` with the raw prompt. Attach its structured
+   brief to the planner. Skip only when the user already supplied a full brief.
+4. **Plan** — delegate to `axiom3d-planner` with the brief (and reference data)
+   attached unless the brief is a trivial re-run of a saved preset.
+5. **Execute & verify** — run scripts through `blender-gate` (with `asset` set).
    Fix every failed stage, re-run until `passed`. Route failures per the table.
    `blender-exec` is for scratch/read-only; `blender-validate` re-checks the
    current scene without executing.
-5. **Critique** — delegate to `axiom3d-reviewer`. Wrong shape/proportion/missing
+6. **Critique** — delegate to `axiom3d-reviewer`. Wrong shape/proportion/missing
    part = fix and re-render, not a pass.
-6. **Export** — `blender-export` when a file is requested.
+7. **Export** — `blender-export` when a file is requested.
 
 ## Rules
 
