@@ -1,8 +1,7 @@
 """RPC command registry. Handlers never touch sockets; worker.py owns the transport
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
 the pump), exec, snapshot, restore, reset, query, render, export, validate, gate,
-list_templates, instantiate, docs, repair, primitives, curves, booleans, assemblies,
-damage."""
+docs, repair, materials, primitives, curves, booleans, assemblies, damage, modify."""
 
 from rpc.base import ExecScriptError, WorkerError, require_live
 from rpc import (
@@ -13,11 +12,12 @@ from rpc import (
     docs,
     export,
     gate,
+    materials,
+    modify,
     primitives,
     render,
     repair,
     session,
-    templates,
     validate,
 )
 
@@ -31,10 +31,10 @@ COMMANDS = {
     "export": export.cmd_export,
     "validate": validate.cmd_validate,
     "gate": gate.cmd_gate,
-    "list_templates": templates.cmd_list_templates,
-    "instantiate": templates.cmd_instantiate,
     "docs": docs.cmd_docs,
     "repair": repair.cmd_repair,
+    "list_materials": materials.cmd_list_materials,
+    "apply_material": materials.cmd_apply_material,
     "create_primitive": primitives.cmd_create_primitive,
     "create_curve": curves.cmd_create_curve,
     "convert_curve_to_mesh": curves.cmd_convert_curve_to_mesh,
@@ -51,6 +51,7 @@ COMMANDS = {
     "cracks": damage.cmd_cracks,
     "surface_noise": damage.cmd_surface_noise,
     "dents": damage.cmd_dents,
+    "modify": modify.cmd_modify,
 }
 
 

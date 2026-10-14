@@ -25,7 +25,6 @@ exist — call them directly:
 - `blender-exec` — run Python in the persistent Blender session
 - `blender-gate` — full 7-stage validation pipeline
 - `blender-validate` — re-check scene without executing
-- `blender-template` — list/instantiate parametric templates
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
@@ -34,6 +33,13 @@ exist — call them directly:
 - `blender-memory` — persistent presets/assets/fixes
 - `blender-checkpoint` — snapshot/restore scene
 - `blender-open` — open scene in Blender GUI
+- `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
+- `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
+- `blender-boolean` — difference/union/intersect on meshes
+- `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list
+- `blender-material` — list/apply PBR materials
+- `blender-assembly` — group multi-part assets
+- `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `webfetch` — fetch a specific URL's content
 - `read`, `write`, `edit`, `glob`, `grep` — file operations
 
@@ -47,7 +53,6 @@ exist — call them directly:
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
-| `blender-template` | List/instantiate parametric templates |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |
@@ -56,6 +61,13 @@ exist — call them directly:
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
 | `blender-checkpoint` | Snapshot/restore manual checkpoints |
 | `blender-open` | Open current scene in Blender GUI |
+| `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
+| `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
+| `blender-boolean` | Difference/union/intersect on meshes |
+| `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
+| `blender-material` | List/apply PBR materials |
+| `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
+| `blender-damage` | Edge wear, chips, cracks, surface noise, dents |
 
 ### Libraries (importable in exec)
 
@@ -63,7 +75,6 @@ exist — call them directly:
 |---|---|
 | `bpy` | Blender Python API (pre-imported) |
 | `ops` | Modifier + detail helpers (pre-imported, see below) |
-| `templates` | Template instantiate (`from templates import instantiate`) |
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
@@ -89,6 +100,10 @@ exist — call them directly:
 | `ops.add_solidify(obj, thickness)` | Give thickness to open surface |
 | `ops.add_mirror(obj, axis)` | Mirror across object origin |
 | `ops.add_subsurf(obj, levels)` | Subdivision surface smoothing |
+| `ops.add_remesh(obj, mode, voxel_size)` | Rebuild topology (VOXEL/SHARP/SMOOTH/BLOCKS) |
+| `ops.add_deform(obj, mode, angle, axis, factor)` | SimpleDeform bend/twist/taper |
+| `ops.add_displace(obj, strength, scale)` | Clouds-texture displacement |
+| `ops.instance_object(source, count, offset)` | Linked-duplicate instances sharing one mesh |
 | `ops.apply_all_modifiers(obj)` | Bake all modifiers into mesh |
 | `ops.scatter_details(obj, detail_type, count, size_range)` | Scatter small details on surface |
 | `ops.scatter_edge_bolts(obj, spacing, radius, depth)` | Bolts along hard edges |
@@ -96,13 +111,12 @@ exist — call them directly:
 
 Corpus reference patterns (query via `blender-docs`): `bevel-modifier`,
 `boolean-opening`, `curve-sweep`, `radial-array`, `detail-scatter`,
-`composition-assembly`. Study the technique, adapt to your asset's parameters —
-never copy-paste blindly.
+`composition-assembly`, `deform-simple`, `remesh-voxel`, `linked-instance`.
+Study the technique, adapt to your asset's parameters — never copy-paste blindly.
 
-Templates (via `blender-template`): `rail_segment`, `sleeper_array`,
-`column_grid`, `fence_run`, `platform_outline`, `canopy_truss`.
-
-Materials: `concrete`, `steel`.
+Materials: `concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`,
+`fabric`, `stone`, `painted`. Author custom Principled BSDF via `blender-exec`
+when no library entry fits.
 
 ## Loop
 
@@ -114,10 +128,12 @@ Materials: `concrete`, `steel`.
 3. **API truth** — `blender-docs` before writing anything you are not sure about:
    node names, socket names, operator args. The API stage rejects guesses; do not
    gamble. Query for techniques: "composition assembly", "boolean opening", "curve
-   sweep", "radial array", "detail scatter", "bevel". Study the pattern, then adapt
-   it to this asset's parameters — do not copy-paste blindly.
-4. **Templates** — for railway/station parts, script `blender-template`-shaped
-   instantiation calls (or plain bpy for composition), never hand-built GN trees.
+   sweep", "radial array", "detail scatter", "bevel", "deform", "remesh", "linked
+   instance". Study the pattern, then adapt it to this asset's parameters — do not
+   copy-paste blindly.
+4. **Compose** — build from primitives, curves, and booleans. Write the specific
+   proportions and part counts from the plan into the script. Use `blender-modify`
+   / `ops` helpers for bevel/remesh/deform/instance passes when the plan calls for them.
 5. **Bevel** — after base geometry is correct, apply bevel to hard-surface objects:
    `ops.add_bevel(obj, width=0.005, segments=2)` or `ops.bevel_all_boxes()` for
    quick pass. Scale width to asset size (0.005m furniture, 0.02m building).
@@ -140,7 +156,8 @@ Materials: `concrete`, `steel`.
 - GN modifier inputs via `mod.properties.inputs[ident]["value"]`, numbers coerced
   to float.
 - `ops` module is available in the exec namespace: `ops.add_bevel()`,
-  `ops.add_boolean()`, `ops.scatter_details()`, `ops.bevel_all_boxes()`, etc.
+  `ops.add_boolean()`, `ops.add_remesh()`, `ops.add_deform()`, `ops.instance_object()`,
+  `ops.scatter_details()`, `ops.bevel_all_boxes()`, etc.
 - Corpus patterns are references to adapt: study the technique, then write code
   with this asset's specific proportions and parameters.
 - One risky mutation per script when recovery matters; the gate snapshots per run.

@@ -1,9 +1,9 @@
 """Conservative auto-repair: deterministic fixes for the stable issue vocabulary.
 
-Fixers mutate ``obj.data`` (the base mesh), not the evaluated mesh — templates bake
-to real geometry with no live modifiers, so base == evaluated for assets this
-module targets. Scripts that leave live modifiers must bake first (gate exec already
-did the work; repair runs after).
+Fixers mutate ``obj.data`` (the base mesh), not the evaluated mesh — assets that
+pass the gate bake to real geometry with no live modifiers, so base == evaluated
+for assets this module targets. Scripts that leave live modifiers must bake first
+(gate exec already did the work; repair runs after).
 
 Respects the declared-intent opt-outs: objects with ``open_surface`` keep their
 open boundaries, ``assembly`` members are never separated or booleaned. Design-level
@@ -69,9 +69,9 @@ def _repair_object(obj, wanted, fixed, skipped):
         log_fixed("unapplied_scale", f"applied scale {[round(v, 6) for v in scale]} to mesh data")
 
     if wants("missing_uv") and obj.data.polygons and not obj.data.uv_layers:
-        from templates import _ensure_uvs  # deferred: templates pulls node-builder imports
+        from geom.uvs import ensure_box_uvs
 
-        _ensure_uvs(obj.data)
+        ensure_box_uvs(obj.data)
         log_fixed("missing_uv", "added box-projection UV layer")
 
     zero_area = wants("zero_area_faces") and any(p.area < ZERO_AREA for p in obj.data.polygons)

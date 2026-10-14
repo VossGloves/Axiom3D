@@ -40,7 +40,7 @@ export default tool({
   description:
     "Search the web via DuckDuckGo. Returns titles, URLs, and snippets for reference images, dimensions, technical drawings. Use before planning any 3D asset — search for orthographic drawings, dimension diagrams, blueprints of the target asset.",
   args: {
-    query: tool.schema.string().describe("Search query, e.g. 'train station platform orthographic drawing'"),
+    query: tool.schema.string().describe("Search query, e.g. 'wooden chair orthographic drawing'"),
     max_results: tool.schema.number().default(5).describe("Max results to return (1-10)"),
   },
   async execute(args) {

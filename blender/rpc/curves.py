@@ -7,8 +7,8 @@ it to a real mesh (for gate/export). sweep extrudes a profile along a curve
 
 import bpy
 
+from materials import get_material
 from rpc.base import WorkerError, call_op
-from templates.materials import get_material
 
 
 def _ground_and_uv(obj):

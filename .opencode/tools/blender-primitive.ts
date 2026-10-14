@@ -12,7 +12,7 @@ type PrimitiveResult = {
 
 export default tool({
   description:
-    "Create a primitive mesh in the Blender scene: cube, uv_sphere, ico_sphere, cylinder, cone, torus, plane, circle, grid. Auto-applies transforms, grounds to Z=0, ensures UV layer. Use for base shapes; use blender-template for railway/station parametric assets.",
+    "Create a primitive mesh in the Blender scene: cube, uv_sphere, ico_sphere, cylinder, cone, torus, plane, circle, grid. Auto-applies transforms, grounds to Z=0, ensures UV layer. Use for base shapes; compose with blender-boolean / blender-modify.",
   args: {
     kind: tool.schema
       .string()
@@ -34,7 +34,7 @@ export default tool({
       .array(tool.schema.number())
       .optional()
       .describe("[x,y,z] location; grounded to Z=0 after creation"),
-    material: tool.schema.string().optional().describe("Material: concrete | steel"),
+    material: tool.schema.string().optional().describe("Material: concrete | steel | metal | plastic | wood | glass | rubber | fabric | stone | painted"),
   },
   async execute(args) {
     try {

@@ -1,6 +1,6 @@
 ---
 name: blender-asset-authoring
-description: Author 3D assets in Blender 5.2 via the Axiom3D harness — templates, staged gate verification, live API docs. Use when building, validating, or exporting Blender geometry.
+description: Author 3D assets in Blender 5.2 via the Axiom3D harness — staged gate verification, live API docs, general-purpose modeling tools. Use when building, validating, or exporting Blender geometry.
 ---
 
 # Blender Asset Authoring
@@ -20,34 +20,31 @@ specialist work yourself when a specialist exists.**
    attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
    before planning: confirm node names, socket names, pull a tested pattern
    snippet. Never guess API details; the gate rejects unknown symbols.
-3. **Template first** — for railway/station parts (rail, sleepers, columns,
-   fence, platform, canopy truss) call `blender-template` to instantiate a
-   parametric, grounded, UV'd, gate-clean mesh. Set parameters; do not rebuild
-   geometry. For non-template primitives use `blender-primitive`; for curves
-   use `blender-curve`; for multi-part assets use `blender-assembly`.
-4. **Compose** — position instances with `blender-exec`/`blender-gate`. Use
-   `blender-boolean` for cutouts/unions. Keep parts non-intersecting (the gate
-   flags object overlap): hairline gaps are fine.
+3. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
+   (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
+   `blender-assembly` for multi-part assets. Set transforms; author each asset's
+   specific proportions and part counts in code.
+4. **Detail pass** — after basic shape passes gate, add visual density:
+   `blender-modify` for bevel/remesh/deform/instance; `ops.bevel_all_boxes()` or
+   `ops.add_bevel(obj)` for soft edges (width 0.005m, angle-limited);
+   `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
+   for industrial fasteners; `blender-damage` for weathering/wear when the brief
+   calls for aged/distressed surfaces.
 5. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
    stage and re-run until `passed`. Route failures per the routing table below.
    `blender-validate` re-checks without executing; `blender-exec` is for
    scratch/read-only scripts. Pass `asset: <name>` on every gate call to
    record the result into memory.
-6. **Detail pass** — after basic shape passes gate, add visual density:
-   `ops.bevel_all_boxes()` or `ops.add_bevel(obj)` for soft edges (width 0.005m,
-   angle-limited); `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
-   for industrial fasteners; `blender-damage` for weathering/wear when the brief
-   calls for aged/distressed surfaces.
-7. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
+6. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
-8. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect
-   the attached views against the brief. Wrong shape/proportion/missing part =
+7. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect the
+   attached views against the brief. Wrong shape/proportion/missing part =
    fix and re-render, not a pass.
-9. **Export** — `blender-export` (glTF default) when a file is requested.
-10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
-    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
+8. **Export** — `blender-export` (glTF default) when a file is requested.
+9. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
+   attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
 
 ## Memory
 
@@ -63,7 +60,7 @@ learn why the last gate failed. After success: `presets.save` the param set.
 
 | Situation | Delegate to |
 |---|---|
-| New brief → plan needed (template, params, composition) | `axiom3d-planner` |
+| New brief → plan needed (composition, params) | `axiom3d-planner` |
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
@@ -72,8 +69,7 @@ learn why the last gate failed. After success: `presets.save` the param set.
 Call specialists via the `task` tool with the evidence they need — they cannot
 see your conversation. Pass gate reports, brief, reference notes in the prompt.
 
-You own: template instantiation, memory writes, export, re-gating after fixes,
-and the final done/not-done call.
+You own: memory writes, export, re-gating after fixes, and the final done/not-done call.
 
 ## Gate stages
 
@@ -103,17 +99,13 @@ Issue vocabulary (fix all errors):
   `obj["assembly"] = True` (multi-part asset whose members overlap at joints).
 - glTF export applies modifiers (`export_apply` on 5.2).
 
-## Templates & Geometry Tools
+## Geometry Tools
 
-`blender-template` with no args lists the library + inputs/defaults. Instantiate
-with a template name + params (+ optional `name`, `material: concrete|steel`):
-rail_segment, sleeper_array, column_grid, fence_run, platform_outline, canopy_truss.
-Each bakes to a real, grounded, UV'd mesh.
-
-For non-template geometry:
 - `blender-primitive` — cube, sphere, cylinder, cone, torus, plane, circle, grid
 - `blender-curve` — bezier/nurbs/poly curves, convert to mesh, sweep profile along path
 - `blender-boolean` — difference/union/intersect (single or batch)
+- `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform (bend/twist/taper), displace, linked-instance (shared mesh), apply (bake modifiers), list
+- `blender-material` — list/apply PBR library materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted)
 - `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
 - `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
 

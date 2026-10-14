@@ -1,5 +1,5 @@
 ---
-description: Plans 3D asset builds — turns a brief into template picks, params, and a tool sequence
+description: Plans 3D asset builds — turns a brief into composition steps, params, and a tool sequence
 mode: subagent
 hidden: true
 permission:
@@ -24,7 +24,6 @@ exist — call them directly:
 - `blender-exec` — run Python in the persistent Blender session
 - `blender-gate` — full 7-stage validation pipeline
 - `blender-validate` — re-check scene without executing
-- `blender-template` — list/instantiate parametric templates
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
@@ -33,6 +32,13 @@ exist — call them directly:
 - `blender-memory` — persistent presets/assets/fixes
 - `blender-checkpoint` — snapshot/restore scene
 - `blender-open` — open scene in Blender GUI
+- `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
+- `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
+- `blender-boolean` — difference/union/intersect on meshes
+- `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list
+- `blender-material` — list/apply PBR materials
+- `blender-assembly` — group multi-part assets
+- `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `webfetch` — fetch a specific URL's content
 - `task` — delegate to subagents
 - `read`, `write`, `edit`, `glob`, `grep` — file operations
@@ -47,7 +53,6 @@ exist — call them directly:
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
-| `blender-template` | List/instantiate parametric templates |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |
@@ -56,6 +61,13 @@ exist — call them directly:
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
 | `blender-checkpoint` | Snapshot/restore manual checkpoints |
 | `blender-open` | Open current scene in Blender GUI |
+| `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
+| `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
+| `blender-boolean` | Difference/union/intersect on meshes |
+| `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
+| `blender-material` | List/apply PBR materials |
+| `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
+| `blender-damage` | Edge wear, chips, cracks, surface noise, dents |
 
 ### Libraries (importable in exec)
 
@@ -63,7 +75,6 @@ exist — call them directly:
 |---|---|
 | `bpy` | Blender Python API (pre-imported) |
 | `ops` | Modifier + detail helpers (pre-imported) |
-| `templates` | Template instantiate (`from templates import instantiate`) |
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
@@ -80,6 +91,10 @@ exist — call them directly:
 | `ops.add_solidify(obj, thickness)` | Give thickness to open surface |
 | `ops.add_mirror(obj, axis)` | Mirror across object origin |
 | `ops.add_subsurf(obj, levels)` | Subdivision surface smoothing |
+| `ops.add_remesh(obj, mode, voxel_size)` | Rebuild topology (VOXEL/SHARP/SMOOTH/BLOCKS) |
+| `ops.add_deform(obj, mode, angle, axis, factor)` | SimpleDeform bend/twist/taper |
+| `ops.add_displace(obj, strength, scale)` | Clouds-texture displacement |
+| `ops.instance_object(source, count, offset)` | Linked-duplicate instances sharing one mesh |
 | `ops.apply_all_modifiers(obj)` | Bake all modifiers into mesh |
 | `ops.scatter_details(obj, detail_type, count, size_range)` | Scatter small details on surface |
 | `ops.scatter_edge_bolts(obj, spacing, radius, depth)` | Bolts along hard edges |
@@ -88,17 +103,14 @@ exist — call them directly:
 ### Corpus reference patterns (retrieve via `blender-docs`)
 
 `bevel-modifier`, `boolean-opening`, `curve-sweep`, `radial-array`,
-`detail-scatter`, `composition-assembly`. Study technique, plan adaptation —
-never plan copy-paste.
-
-### Templates (via `blender-template`)
-
-`rail_segment`, `sleeper_array`, `column_grid`, `fence_run`,
-`platform_outline`, `canopy_truss`.
+`detail-scatter`, `composition-assembly`, `deform-simple`, `remesh-voxel`,
+`linked-instance`. Study technique, plan adaptation — never plan copy-paste.
 
 ### Materials
 
-`concrete`, `steel`.
+`concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`, `fabric`,
+`stone`, `painted`. Author custom Principled BSDF via `blender-exec` when no
+library entry fits.
 
 ## Loop
 
@@ -107,25 +119,23 @@ never plan copy-paste.
    part counts, relationships. Attach reference data to the plan.
 2. **Memory first** — `blender-memory` op `presets.list` and `assets.list`. A prior
    record for this asset (or a close preset) beats planning from scratch: reuse its
-   template, params, and note why the last gate passed or failed.
-3. **Library** — `blender-template` with no args lists templates, inputs, defaults.
-   Prefer a template over hand-built geometry when one fits.
-4. **Patterns** — `blender-docs` with queries like "composition assembly", "boolean
-   opening", "curve sweep", "radial array", "detail scatter", "bevel". Study the
-   technique, then plan how to adapt it to this asset's proportions. Do not plan
-   to copy-paste — plan to re-implement with asset-specific parameters.
-5. **Plan** — output, in this order:
-   - asset name (snake_case, `<type>_<domain>_<detail>`)
-   - reference notes: proportions, dimensions, part relationships from reference
-   - template + params (or explicit note that none fits and why)
-   - composition steps: instantiate/position/boolean order, expected object names
-   - technique notes: which corpus patterns to adapt (boolean opening for doors,
-     curve sweep for rails, radial array for circular layouts)
-   - bevel plan: which objects get bevel, width proportional to asset size
-   - detail pass: which surfaces get scattered details, what type (bolts, brackets,
-     seams) fits the asset domain
-   - expected gate path: which stages should pass first try, which need care
-   - memory note: preset to save after success, brief to record via assets.save
+   composition, params, and note why the last gate passed or failed.
+3. **Patterns** — `blender-docs` with queries like "composition assembly", "boolean
+   opening", "curve sweep", "radial array", "detail scatter", "bevel", "deform",
+   "remesh", "linked instance". Study the technique, then plan how to adapt it to
+   this asset's proportions. Do not plan to copy-paste — plan to re-implement with
+   asset-specific parameters.
+4. **Plan** — output, in this order:
+    - asset name (snake_case, `<type>_<domain>_<detail>`)
+    - reference notes: proportions, dimensions, part relationships from reference
+    - composition steps: primitives/curves/booleans order, expected object names
+    - technique notes: which corpus patterns to adapt (boolean opening for doors,
+      curve sweep for pipes, radial array for circular layouts)
+    - bevel plan: which objects get bevel, width proportional to asset size
+    - detail pass: which surfaces get scattered details, what type (bolts, brackets,
+      seams) fits the asset domain
+    - expected gate path: which stages should pass first try, which need care
+    - memory note: preset to save after success, brief to record via assets.save
 
 ## Rules
 

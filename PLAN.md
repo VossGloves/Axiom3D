@@ -1,13 +1,13 @@
-# Axiom3D — Blender Asset-Generation Harness for Opencode
+# Axiom3D — General-Purpose Blender Modeling Harness for Opencode
 
 Plan source of truth. Update phase checkboxes here as work completes so any session can resume.
 
 ## Context
 
-Turn this opencode fork (github.com/madmarv10/Axiom3D) into an AI harness specialized for
-3D asset generation in Blender. LLM-generated `bpy` scripts fail two ways: hallucinated APIs
-and silent geometry failures. Fix: persistent headless Blender session + scene introspection +
-staged verification gate + template asset library + version-pinned API docs.
+Turn this opencode fork (github.com/madmarv10/Axiom3D) into a general-purpose AI harness
+for Blender 3D asset generation. LLM-generated `bpy` scripts fail two ways: hallucinated
+APIs and silent geometry failures. Fix: persistent headless Blender session + scene
+introspection + staged verification gate + version-pinned API docs.
 
 **Environment (verified 2026-10-09):**
 - Windows 11, Blender 5.2 at `C:\Program Files\Blender Foundation\Blender 5.2` (not on PATH)
@@ -25,9 +25,12 @@ staged verification gate + template asset library + version-pinned API docs.
    `packages/core/src/tool/` builtins only in Phase 6 after stable.
 5. **Upstream sync** = add `anomalyco/opencode` as upstream remote, rebase onto `dev`
    periodically. Custom tools live in `.opencode/` so they survive rebases.
-6. **Geometry Nodes strategy** = prebuilt template node groups in a `.blend` asset library
-   with exposed group inputs. Agents set parameters, never build node trees from raw Python
-   in v1 (GN Python API drifts across versions — same hallucination class as `bpy`).
+6. **No template asset library** (superseded). Agents compose from primitives/curves/
+   booleans + modifier tools (`blender-modify`) with asset-specific parameters. A
+   prebuilt parametric library (Phase 4, now removed) produced samey assets — every
+   brief that hit a template returned the same silhouette. Visual variety comes from
+   reference-driven composition in code, not preset node groups. GN node-building via
+   exec remains allowed when the modeller has confirmed the API via `blender-docs`.
 7. **Conventions**: 1 unit = 1 m, origin placement rules, object naming lint — enforced by
    the validator, documented in `docs/axiom3d/conventions.md`.
 8. **Cut from original idea**: Sverchok (stray mention, geonodes covers it), external
@@ -44,13 +47,13 @@ Axiom3D/
 │   └── agent/axiom3d.md           agent workflow: request -> retrieve -> plan -> exec -> gate
 ├── blender/                       harness core, zero opencode dependencies
 │   ├── worker.py                  persistent session, JSON-RPC loop, snapshot/restore
-│   ├── rpc/                       command handlers (exec, query, render, export, validate, gate, templates)
+│   ├── rpc/                       command handlers (exec, query, render, export, validate, gate, materials, modify)
 │   ├── gate/                      staged verification pipeline
 │   ├── geom/                      evaluated-mesh checks
-│   ├── templates/                 template library builder + instantiate API
+│   ├── materials.py               PBR material library builders
 │   ├── api_index.py               live bpy symbol index for hallucination checks
 │   ├── corpus/                    live bpy introspection + pattern cookbook + breaking changes
-│   └── tests/                     bun test (worker/tools/gate/templates/corpus)
+│   └── tests/                     bun test (worker/tools/gate/modify/corpus)
 └── docs/axiom3d/conventions.md    scale, origin, naming rules
 ```
 
@@ -144,65 +147,55 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
 - Deliverable: hallucinated API name fails at stage 2 with a suggestion, never crashes
   the worker. **DONE.** Verified 2026-10-09: 31/31 (worker 11, tools 7, gate 13).
 
-### Phase 4 — Template asset library
-- [x] Builder scripts produce template GN groups + PBR materials (`blender/templates/`):
-  rail segment, sleeper array, column grid, fence run, platform outline, canopy truss,
-  concrete + steel. All cube-based (Cube node emits UVs) with exposed float inputs;
-  sleeper/fence/truss instance cubes along a self-generated centered CurveLine.
-  `build_library.py` builds in-process (no .blend required by the worker) and can
-  `--save` a library for GUI editing
-- [x] Worker API: `list_templates`, `instantiate` (rpc/templates.py) + a `blender-template`
-  agent tool (list + instantiate). instantiate bakes via depsgraph `new_from_object`,
-  grounds (zmin→0), box-projects UVs, and sets inputs through
-  `mod.properties.inputs[ident]["value"]` (Blender 5.2 moved GN modifier inputs off
-  idproperties). Numeric params coerced to float (ints don't stick on float slots)
-- [x] Build-time gate validation of every template (build_library.py runs stage 4+5
-  checks per template; multi-part assemblies like the truss/fence carry an
-  `assembly` opt-out so intentional joint overlaps don't trip self-intersection)
-- [x] Blender-side deps: none new beyond the Phase 3 trimesh pin (templates use only
-  bpy/numpy builtins)
-- Milestone (deliverable): industrial railway station — platform + track (rails +
-  sleepers) + canopy (columns + truss) assembled from templates, full gate pass,
-  6-view render, export roundtrip pass. Covered by the station test in
-  `blender/tests/templates.test.ts`. **DONE.** Verified 2026-10-09: 37/37 (worker 11,
-  tools 7, gate 13, templates 6). MANIFOLD booleans crashed Blender on multi-shell
-  template geometry, so self-intersection detection is AABB-based and cross-object
-  checks use the EXACT solver.
+### Phase 4 — Template asset library — REMOVED (2026-10-14)
+
+Builder scripts produced GN template groups + PBR materials under `blender/templates/`
+(rail segment, sleeper array, column grid, fence run, platform outline, canopy truss,
+concrete + steel). Worker commands `list_templates`/`instantiate` + a `blender-template`
+agent tool. Railway-station milestone assembled from templates.
+
+**Removed because the library produced samey assets** — every brief that hit a template
+returned the same silhouette regardless of reference. Replaced by general-purpose
+composition: primitives/curves/booleans + `blender-modify` (bevel, array, remesh,
+deform, displace, linked-instance) with asset-specific parameters. Materials relocated
+to `blender/materials.py` and expanded to a 10-entry PBR set (concrete, steel, metal,
+plastic, wood, glass, rubber, fabric, stone, painted) exposed via `blender-material`.
+GN node-building via `blender-exec` remains allowed when confirmed via `blender-docs`.
 
 ### Phase 5 — API doc retrieval
-- [x] `blender/corpus/` — API source is **live introspection of the installed Blender**
+- `blender/corpus/` — API source is **live introspection of the installed Blender**
   (corpus/introspect.py), not a docs.blender.org fetch: reading sockets/methods straight
   from the pinned 5.2 install is version-true by construction and cannot drift from the
   runtime the way fetched docs can. Resolves human names ("Principled BSDF") to bpy.types
   node classes via camelCase-token scoring, instantiates in a throwaway tree, lists real
   sockets. Breaking changes (5.0-5.2 renames this harness hit) are hand-curated in
   corpus/breaking_changes.py
-- [x] Library pattern cookbook — `blender/corpus/examples/`: 8 tested Blender 5.2 snippets
+- [x] Library pattern cookbook — `blender/corpus/examples/`: tested Blender 5.2 snippets
   (depsgraph to_mesh, bmesh edit, numpy layout, mathutils Matrix + KDTree, Principled
-  sockets, GN modifier inputs, template instantiate). Retrieved on demand via
-  `blender_docs`, never in the standing prompt. Runtime execution validated by
-  `blender/corpus/validate_patterns.py` (a build-time script — Bun.spawn of Blender
-  segfaults Bun 1.4.2 on Windows, so the live check lives there, not in the bun suite)
+  sockets, GN modifier inputs, boolean opening, curve sweep, radial array, detail scatter,
+  composition assembly, bevel modifier, deform simple, remesh voxel, linked instance).
+  Retrieved on demand via `blender_docs`, never in the standing prompt. Runtime execution
+  validated by `blender/corpus/validate_patterns.py` (a build-time script — Bun.spawn of
+  Blender segfaults Bun 1.4.2 on Windows, so the live check lives there, not in the bun suite)
 - [x] `docs` worker command + `blender-docs` tool return introspected sockets + runnable
   pattern code + matching breaking changes, not just signatures
 - [x] Wire into agent workflow: "Retrieve" step before "Plan" (axiom3d.md)
 - Deliverable: query "Principled BSDF sockets in 5.2" returns the correct, version-true
   32-socket list (Base Color, Metallic, Roughness, ...) read from the live install.
-  **DONE.** Verified 2026-10-09: 43/43 (worker 11, tools 7, gate 13, templates 6,
-  corpus 6).
+  **DONE.** Verified 2026-10-09.
 
 ### Phase 6 — Promotion / packaging (after stable)
 - [x] `blender-asset-authoring` skill (`.opencode/skills/blender-asset-authoring/SKILL.md`):
   the on-demand reference for the authoring workflow, gate stages + issue vocabulary,
-  conventions, template list, and the verified 5.2 gotchas. Complements the lean agent
+  conventions, geometry tools, and the verified 5.2 gotchas. Complements the lean agent
   prompt (heavy detail lives here, loaded only when relevant).
 - [x] CI (`.github/workflows/axiom3d.yml`): on push/PR to main — installs the pinned
   Blender 5.2.2 Linux tarball (cached), installs trimesh into its bundled Python, then
-  runs `bun typecheck`, the build-time validators (template library + pattern cookbook),
-  and the headless Workbench test suite (`bun test --parallel=1 --no-isolate` from
-  blender/). The harness tests live outside packages/, so the monorepo `bun turbo test`
-  does not cover them; this workflow does. Renders are Workbench/CPU only (no GPU).
-- Deferred — promote tools into `packages/core/src/tool/` builtins: the nine Blender
+  runs `bun typecheck`, the pattern cookbook validator, and the headless Workbench test
+  suite (`bun test --parallel=1 --no-isolate` from blender/). The harness tests live
+  outside packages/, so the monorepo `bun turbo test` does not cover them; this
+  workflow does. Renders are Workbench/CPU only (no GPU).
+- Deferred — promote tools into `packages/core/src/tool/` builtins: the Blender
   tools are Axiom3D-harness-specific, not generic opencode capabilities. Pushing them
   into core would pollute the product for every user; they correctly stay as project
   tools (`.opencode/tools/`). Locked decision #4's spirit: domain tools stay local.
@@ -241,8 +234,8 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   all test files share one worker through the port file, so parallel file workers must
   stay off — they race the scene and the snapshot pool)
 - `bun typecheck` from `packages/opencode` after TS changes (repo AGENTS.md rule)
-- Milestone demos: crate -> platform segment -> full station. Each ends with gate report
-  JSON + multi-view render + export roundtrip pass.
+- Milestone demos: crate → table (multi-part composition) → chair (bevel + material).
+  Each ends with gate report JSON + multi-view render + export roundtrip pass.
 - Negative test: deliberately hallucinated `bpy` attribute must fail at gate stage 2.
 
 ## Risks

@@ -25,7 +25,6 @@ exist — call them directly:
 - `blender-exec` — run Python in the persistent Blender session
 - `blender-gate` — full 7-stage validation pipeline
 - `blender-validate` — re-check scene without executing
-- `blender-template` — list/instantiate parametric templates
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
@@ -34,7 +33,15 @@ exist — call them directly:
 - `blender-memory` — persistent presets/assets/fixes
 - `blender-checkpoint` — snapshot/restore scene
 - `blender-open` — open scene in Blender GUI
+- `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
+- `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
+- `blender-boolean` — difference/union/intersect on meshes
+- `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list
+- `blender-material` — list/apply PBR materials
+- `blender-assembly` — group multi-part assets
+- `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `webfetch` — fetch a specific URL's content
+- `task` — delegate to subagents
 - `read`, `write`, `edit`, `glob`, `grep` — file operations
 
 ## Capabilities
@@ -47,7 +54,6 @@ exist — call them directly:
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
-| `blender-template` | List/instantiate parametric templates |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |
@@ -56,6 +62,13 @@ exist — call them directly:
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
 | `blender-checkpoint` | Snapshot/restore manual checkpoints |
 | `blender-open` | Open current scene in Blender GUI |
+| `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
+| `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
+| `blender-boolean` | Difference/union/intersect on meshes |
+| `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
+| `blender-material` | List/apply PBR materials |
+| `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
+| `blender-damage` | Edge wear, chips, cracks, surface noise, dents |
 
 ### Libraries (importable in exec)
 
@@ -63,41 +76,21 @@ exist — call them directly:
 |---|---|
 | `bpy` | Blender Python API (pre-imported) |
 | `ops` | Modifier + detail helpers (pre-imported) |
-| `templates` | Template instantiate (`from templates import instantiate`) |
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 
-### Ops module (available in modeller's exec)
-
-| Function | What it does |
-|---|---|
-| `ops.add_bevel(obj, width, segments, angle_limit)` | Bevel one object's hard edges |
-| `ops.bevel_all_boxes(width, segments)` | Bevel every box-like mesh in scene |
-| `ops.add_array(obj, count, offset, use_relative)` | Array/duplicate along offset |
-| `ops.add_boolean(obj, cutter, operation, solver)` | Boolean DIFFERENCE/UNION/INTERSECT |
-| `ops.add_solidify(obj, thickness)` | Give thickness to open surface |
-| `ops.add_mirror(obj, axis)` | Mirror across object origin |
-| `ops.add_subsurf(obj, levels)` | Subdivision surface smoothing |
-| `ops.apply_all_modifiers(obj)` | Bake all modifiers into mesh |
-| `ops.scatter_details(obj, detail_type, count, size_range)` | Scatter small details on surface |
-| `ops.scatter_edge_bolts(obj, spacing, radius, depth)` | Bolts along hard edges |
-| `ops.add_panel_lines(obj, inset, depth)` | Recessed seam lines on flat faces |
-
 ### Corpus reference patterns (retrieve via `blender-docs`)
 
 `bevel-modifier`, `boolean-opening`, `curve-sweep`, `radial-array`,
-`detail-scatter`, `composition-assembly`.
-
-### Templates (via `blender-template`)
-
-`rail_segment`, `sleeper_array`, `column_grid`, `fence_run`,
-`platform_outline`, `canopy_truss`.
+`detail-scatter`, `composition-assembly`, `deform-simple`, `remesh-voxel`,
+`linked-instance`.
 
 ### Materials
 
-`concrete`, `steel`.
+`concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`, `fabric`,
+`stone`, `painted`.
 
 ## Loop
 
@@ -109,12 +102,12 @@ exist — call them directly:
 3. **Brief check** — compare against the stated brief: correct parts present, sane
    proportions, no floating/sunk geometry, naming visible in `blender-scene`.
 4. **Verdict** — one of:
-   - `pass` — matches brief, gate clean
-   - `fix` — list each discrepancy as: what is wrong, which view shows it, what
-     the correct value/part is. Be specific: "column height ~1.8x platform, brief
-     says flush" not "proportions off"
-   - `block` — design-level conflict (brief contradicts conventions, missing
-     information); state what the director must decide
+    - `pass` — matches brief, gate clean
+    - `fix` — list each discrepancy as: what is wrong, which view shows it, what
+      the correct value/part is. Be specific: "column height ~1.8x platform, brief
+      says flush" not "proportions off"
+    - `block` — design-level conflict (brief contradicts conventions, missing
+      information); state what the director must decide
 
 ## Rules
 

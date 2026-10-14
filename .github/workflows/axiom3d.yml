@@ -75,14 +75,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri mesa-utils
 
-      - name: Build + validate template library
-        env:
-          BLENDER_PATH: ${{ github.workspace }}/.blender/blender
-        run: |
-          set -uo pipefail
-          xvfb-run -a "$BLENDER_PATH" --background --factory-startup --python blender/templates/build_library.py 2>&1 | tee /tmp/build-library.log
-          grep -q "BUILD OK" /tmp/build-library.log
-
       - name: Validate pattern cookbook
         env:
           BLENDER_PATH: ${{ github.workspace }}/.blender/blender

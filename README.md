@@ -17,8 +17,8 @@ Left alone, an LLM writing Blender Python fails in two characteristic ways:
   non-manifold, inside-out, wrong-scale, floating, or self-intersecting meshes.
 
 Both are invisible until someone opens the file. Axiom3D makes them visible: the agent
-retrieves the real API, instantiates proven templates, and every scene change is
-verified by a gate that fails fast with structured evidence.
+retrieves the real API, and every scene change is verified by a gate that fails fast
+with structured evidence.
 
 ## The approach
 
@@ -27,8 +27,8 @@ verified by a gate that fails fast with structured evidence.
 | API drift vs. training data | Live introspection of the installed Blender + a symbol check that rejects unknown names with a suggestion |
 | Scripts that hang or crash Blender | A persistent worker with per-call timeouts, auto-snapshots, and kill/restore recovery |
 | Broken geometry | A staged verification gate: syntax → API → execute → evaluated-mesh geometry → trimesh quality/intersections → glTF roundtrip → multi-view render |
-| Reinventing every part | A parametric template library (rail, sleepers, columns, fence, platform, canopy truss) agents instantiate by setting parameters |
-| Guessing node trees | Agents never build Geometry Nodes — they set exposed inputs on prebuilt groups |
+| Samey assets from presets | Agents compose from primitives/curves/booleans + modifier tools with asset-specific parameters — no fixed template library |
+| Guessing node trees | Agents query the live API corpus (`blender-docs`) for verified socket names and tested pattern snippets before writing |
 
 ## How it works
 
@@ -40,15 +40,15 @@ verified by a gate that fails fast with structured evidence.
   returns a structured JSON report with evidence. Script stages (syntax, API symbols,
   exec) fail fast; scene stages (geometry, mesh quality, export roundtrip, render) all
   run and accumulate issues so one report carries everything the agent needs to fix.
-- **Template library** (`blender-template`) — parametric Geometry Nodes assets with
-  exposed float inputs. `instantiate` bakes a template into a real, grounded, UV'd mesh.
-  Agents set parameters; they never build node trees.
+- **Geometry tools** — `blender-primitive`, `blender-curve`, `blender-boolean`,
+  `blender-modify` (bevel, array, remesh, deform, displace, linked-instance),
+  `blender-material` (10-entry PBR library), `blender-assembly`, `blender-damage`.
+  Agents build each asset's specific proportions and details in code.
 - **Live API corpus** (`blender-docs`) — resolves a human name ("Principled BSDF") to the
   real node class and lists its actual sockets read from the running Blender, plus a
   cookbook of tested pattern snippets and the 5.0–5.2 breaking changes this harness hit.
-- **Agent + tools** — an `axiom3d` agent wired with `blender-{exec, scene, checkpoint,
-  validate, render, export, gate, template, docs}`, following a retrieve → template →
-  gate → critique → export loop.
+- **Agent + tools** — an `axiom3d` agent wired with the full `blender-*` toolset,
+  following a retrieve → plan → compose → gate → critique → export loop.
 
 ## Requirements
 
@@ -79,9 +79,9 @@ axiom3d
 
 `axiom3d` is a thin launcher (see `script/axiom3d.ts`) that starts the same thing as
 `bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any arguments.
-Ask it to build something — e.g. *“make a 1 m crate”* or *“assemble a small railway
-station from templates”*. The agent retrieves the API, instantiates templates, and runs
-the gate until the asset passes.
+Ask it to build something — e.g. *"make a 1 m crate"* or *"model a wooden chair with
+soft bevels"*. The agent retrieves the API, composes geometry from primitives and
+modifiers with the brief's proportions, and runs the gate until the asset passes.
 
 The full design, phase history, and conventions live in [`PLAN.md`](./PLAN.md) and
 [`docs/axiom3d/conventions.md`](./docs/axiom3d/conventions.md).
@@ -97,16 +97,15 @@ cd blender
 bun test --parallel=1 --no-isolate
 ```
 
-Build-time validators (also run in CI):
+Build-time validator (also run in CI):
 
 ```bash
-blender --background --factory-startup --python blender/templates/build_library.py
 blender --background --factory-startup --python blender/corpus/validate_patterns.py
 ```
 
 CI (`.github/workflows/axiom3d.yml`) runs on every push/PR to `main`: it installs the
-pinned Blender 5.2.2 (cached), `bun typecheck`, the build validators, and the full
-headless Workbench test suite under Xvfb.
+pinned Blender 5.2.2 (cached), `bun typecheck`, the pattern cookbook validator, and the
+full headless Workbench test suite under Xvfb.
 
 ## Layout
 
@@ -114,12 +113,12 @@ headless Workbench test suite under Xvfb.
 script/axiom3d.ts      global `axiom3d` launcher (registered via `bun link`)
 blender/
 ├── worker.py        persistent session: JSON-RPC loop, snapshot/restore, watchdog
-├── rpc/             command handlers (exec, gate, templates, docs, render, export, ...)
+├── rpc/             command handlers (exec, gate, docs, render, export, materials, modify, ...)
 ├── gate/            staged verification pipeline + AST API-symbol checker
 ├── geom/            evaluated-mesh geometry + trimesh quality checks
-├── templates/       parametric GN asset library + build/validate script
+├── materials.py     PBR material library builders
 ├── corpus/          live bpy introspection + pattern cookbook + breaking changes
-└── tests/           bun test suite (worker, tools, gate, templates, corpus)
+└── tests/           bun test suite (worker, tools, gate, modify, corpus)
 .opencode/
 ├── tools/           blender-* agent tools
 ├── agent/axiom3d.md the agent's workflow prompt
@@ -133,5 +132,4 @@ Built on [opencode](https://opencode.ai), the open-source AI coding agent.
 
 ---
 
-**Axiom3D** — Blender 5.2 · persistent worker · staged verification gate · template
-library · live API corpus
+**Axiom3D** — Blender 5.2 · persistent worker · staged verification gate · live API corpus

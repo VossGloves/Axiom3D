@@ -1,34 +1,32 @@
 # id: composition-assembly
-# title: Compose multi-part assets from templates
-# tags: composition, assembly, layout, multi-part, station, building
-# description: Reference technique — instantiate templates, position with transforms, join into composite asset. Learn the pattern, adapt to your specific composition.
+# title: Compose multi-part assets from primitives
+# tags: composition, assembly, layout, multi-part, building
+# description: Reference technique — build parts with primitives/booleans, position with transforms, join into a composite asset. Learn the pattern, adapt to your specific composition.
 
 import bpy
-from templates import instantiate
 
 
 def run():
-    # Compose a simple platform segment: platform slab + columns + canopy
+    # Compose a simple table-like asset: top slab + 4 legs
     parts = []
 
-    # Platform
-    platform = instantiate("platform_outline", {"Width": 8.0, "Depth": 3.0, "Height": 0.9},
-                           name="platform", material="concrete")
-    parts.append(platform)
+    # Top slab
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.75))
+    top = bpy.context.active_object
+    top.name = "table_top"
+    top.scale = (1.2, 0.7, 0.04)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    parts.append(top)
 
-    # Columns at corners
-    positions = [(-3.5, -1.0), (3.5, -1.0), (-3.5, 1.0), (3.5, 1.0)]
+    # Legs at corners
+    positions = [(-0.55, -0.3), (0.55, -0.3), (-0.55, 0.3), (0.55, 0.3)]
     for i, (x, y) in enumerate(positions):
-        col = instantiate("column_grid", {"Height": 3.5, "Size": 0.2, "Count X": 1, "Count Y": 1},
-                          name=f"col_{i}")
-        col.location = (x, y, 0.9)  # on top of platform
-        parts.append(col)
-
-    # Canopy truss spanning columns
-    canopy = instantiate("canopy_truss", {"Span": 7.0, "Depth": 0.8, "Bay": 1.5, "Member": 0.1},
-                         name="canopy", material="steel")
-    canopy.location = (0, 0, 4.4)  # above columns
-    parts.append(canopy)
+        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(x, y, 0.36))
+        leg = bpy.context.active_object
+        leg.name = f"leg_{i}"
+        leg.scale = (0.05, 0.05, 0.36)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        parts.append(leg)
 
     # Join all parts into one object
     bpy.ops.object.select_all(action="DESELECT")
@@ -37,8 +35,8 @@ def run():
     bpy.context.view_layer.objects.active = parts[0]
     bpy.ops.object.join()
     joined = bpy.context.active_object
-    joined.name = "platform_segment"
+    joined.name = "table"
 
     verts = len(joined.data.vertices)
     bpy.data.objects.remove(joined, do_unlink=True)
-    return {"parts": 4, "verts": verts}
+    return {"parts": 5, "verts": verts}

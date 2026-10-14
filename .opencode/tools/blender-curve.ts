@@ -33,7 +33,7 @@ export default tool({
     fill_mode: tool.schema.string().optional().describe("Curve fill: FULL | BACK | FRONT | HALF"),
     path: tool.schema.string().optional().describe("Path curve object name for sweep"),
     profile: tool.schema.string().optional().describe("Profile curve object name for sweep"),
-    material: tool.schema.string().optional().describe("Material: concrete | steel"),
+    material: tool.schema.string().optional().describe("Material: concrete | steel | metal | plastic | wood | glass | rubber | fabric | stone | painted"),
   },
   async execute(args) {
     const action = args.action

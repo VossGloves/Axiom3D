@@ -6,8 +6,8 @@ transforms, ensures UV layer, optional material. Grounds to Z=0 by default.
 
 import bpy
 
+from materials import get_material
 from rpc.base import WorkerError, call_op
-from templates.materials import get_material
 
 
 def _ground_and_uv(obj):

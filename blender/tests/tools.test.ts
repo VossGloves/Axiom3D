@@ -12,8 +12,9 @@ import blenderValidate from "../../.opencode/tools/blender-validate"
 import blenderRender from "../../.opencode/tools/blender-render"
 import blenderExport from "../../.opencode/tools/blender-export"
 import blenderGate from "../../.opencode/tools/blender-gate"
-import blenderTemplate from "../../.opencode/tools/blender-template"
 import blenderDocs from "../../.opencode/tools/blender-docs"
+import blenderMaterial from "../../.opencode/tools/blender-material"
+import blenderModify from "../../.opencode/tools/blender-modify"
 import { request, status, stop } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
@@ -37,8 +38,9 @@ const tools = {
   render: blenderRender,
   export: blenderExport,
   gate: blenderGate,
-  template: blenderTemplate,
   docs: blenderDocs,
+  material: blenderMaterial,
+  modify: blenderModify,
 }
 
 beforeAll(async () => {
@@ -51,7 +53,7 @@ afterAll(() => {
 })
 
 describe("tool shape", () => {
-  test("nine tools, each with description, args, execute", () => {
+  test("ten tools, each with description, args, execute", () => {
     for (const [name, definition] of Object.entries(tools)) {
       expect(typeof definition.description, name).toBe("string")
       expect(definition.description.length, name).toBeGreaterThan(40)

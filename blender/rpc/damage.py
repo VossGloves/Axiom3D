@@ -15,8 +15,8 @@ import random
 import bmesh
 import bpy
 
+from materials import get_material
 from rpc.base import WorkerError, call_op
-from templates.materials import get_material
 
 
 def _get_target(name):

@@ -18,16 +18,17 @@ the issue vocabulary below as structured evidence.
 ## Origin
 
 - Origin at asset logical base: ground-plane contact point for props, center of footprint
-  for buildings/platforms.
+  for buildings/structures.
 - Ground plane = Z 0. No floating assets, no sunk geometry.
 - Applied transforms: location at creation point, rotation/scale zeroed after apply.
 
 ## Naming
 
-- Pattern: `<type>_<domain>_<detail>` in snake_case, e.g. `platform_west_surface`,
-  `rail_north_main`, `truss_canopy_01`.
-- Types: `rail`, `sleeper`, `platform`, `truss`, `column`, `fence`, `canopy`, `building`,
-  `prop`, `camera`, `light`, `material`.
+- Pattern: `<type>_<domain>_<detail>` in snake_case, e.g. `crate_warehouse_shipping`,
+  `table_office_desk`, `chair_kitchen_01`.
+- Types (open-ended, pick closest): `prop`, `furniture`, `vehicle`, `building`,
+  `structure`, `nature`, `industrial`, `character_prop`, `container`, `tool`,
+  `camera`, `light`, `material`.
 - No default names survive (`Cube.001`, `Material.007`) — validator fails them.
 
 ## Mesh health
@@ -35,20 +36,19 @@ the issue vocabulary below as structured evidence.
 - Manifold: no non-manifold edges (except intentional open surfaces: declared via
   `["open_surface"]` custom property).
 - No self-intersection: separate shells must not overlap (except intentional
-  multi-part assemblies — truss chords + web posts, fence posts + rail — declared
-  via the `["assembly"]` custom property; `blender-template` sets this on
-  canopy_truss and fence_run).
+  multi-part assemblies — declared via the `["assembly"]` custom property;
+  set on any multi-part object whose members overlap at joints).
 - No zero-area faces, no flipped normals, triangulated consistently.
 - UV layer present on every renderable mesh.
 - Poly budget per asset class: default cap is 100,000 evaluated verts per mesh
-  (gate param `poly_budget` overrides); per-asset-class budgets land with the
-  template library in Phase 4.
+  (gate param `poly_budget` overrides).
 
 ## Materials
 
-- Template materials from `axiom3d_library.blend` first; procedural ad-hoc material only
-  when no template fits, and must expose base color/roughness/metallic as node group
-  inputs.
+- Pick from the library first via `blender-material` (concrete, steel, metal,
+  plastic, wood, glass, rubber, fabric, stone, painted); author procedural
+  ad-hoc material only when no library entry fits, and expose base
+  color/roughness/metallic as node group inputs.
 
 ## Export
 

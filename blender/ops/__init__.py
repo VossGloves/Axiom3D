@@ -16,6 +16,12 @@ from ops.modifiers import (
     apply_all_modifiers,
     bevel_all_boxes,
 )
+from ops.deform import (
+    add_deform,
+    add_displace,
+    add_remesh,
+    instance_object,
+)
 from ops.details import (
     add_panel_lines,
     scatter_details,
@@ -31,6 +37,10 @@ __all__ = [
     "add_subsurf",
     "apply_all_modifiers",
     "bevel_all_boxes",
+    "add_deform",
+    "add_displace",
+    "add_remesh",
+    "instance_object",
     "add_panel_lines",
     "scatter_details",
     "scatter_edge_bolts",
