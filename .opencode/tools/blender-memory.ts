@@ -25,7 +25,7 @@ const OPS = [
 
 export default tool({
   description:
-    "Asset memory: persistent presets (named template param sets), per-asset records (brief, params, gate history), and learned fix outcomes. Use before planning (check presets/assets for prior work) and after builds (save preset, record gate). Storage: .axiom3d/memory/*.json.",
+    "Asset memory: persistent presets (named param sets), per-asset records (brief, params, gate history), and learned fix outcomes. Memory informs conventions and gate lessons only — never composition or silhouette; every generation composes fresh. Use before planning (check gate history) and after builds (save preset, record gate). Storage: .axiom3d/memory/*.json.",
   args: {
     op: tool.schema.enum(OPS).describe("Memory operation"),
     key: tool.schema.string().optional().describe("Preset or asset name (presets.*, assets.*, fixes.record)"),

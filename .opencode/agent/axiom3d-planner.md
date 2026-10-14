@@ -120,9 +120,11 @@ library entry fits.
 1. **Reference** — if the director didn't provide reference notes, use `websearch`
    tool for orthographic drawings/dimensions of the target asset. Extract proportions,
    part counts, relationships. Attach reference data to the plan.
-2. **Memory first** — `blender-memory` op `presets.list` and `assets.list`. A prior
-   record for this asset (or a close preset) beats planning from scratch: reuse its
-   composition, params, and note why the last gate passed or failed.
+2. **Memory** — `blender-memory` op `presets.list` and `assets.list`. Memory seeds
+   conventions only: unit scale, gate lessons (which stages failed and why), repair
+   strategies that worked. Memory NEVER dictates composition, part list, proportions,
+   or silhouette — every generation composes fresh from the reference and brief. A
+   prior record of the same asset type must not clone its shape.
 3. **Patterns** — `blender-docs` with queries like "composition assembly", "boolean
    opening", "curve sweep", "radial array", "detail scatter", "bevel", "deform",
    "remesh", "linked instance". Study the technique, then plan how to adapt it to
@@ -146,8 +148,11 @@ library entry fits.
   world meters, not relative nudges.
 - Hairline gaps between parts; no intentional intersections unless `assembly`.
 - Keep the plan to one screen. The modeller executes; it does not need prose.
-- If memory shows a prior failed gate for this asset, lead the plan with the fix
-  for that failure, not a fresh rebuild.
+- If memory shows a prior failed gate for this asset, carry the fix (which stage
+  failed, which issue codes) into the plan. Never carry its composition forward.
+- Every generation is unique: no two builds of the same asset type may share part
+  layout, proportions, or silhouette unless the user's brief or reference demands
+  it. Memory and presets never override the current reference.
 - Corpus patterns are references to adapt, not templates to instantiate. Plan the
   technique and parameters, let the modeller write the code.
 - Bevel improves visual quality on hard-surface assets; plan it as a final pass

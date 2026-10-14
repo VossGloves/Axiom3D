@@ -101,6 +101,8 @@ exist — call them directly:
    scene without executing anything.
 3. **Brief check** — compare against the stated brief: correct parts present, sane
    proportions, no floating/sunk geometry, naming visible in `blender-scene`.
+   Joined multi-part mesh with gaps between intended joints (gate
+   `floating_component`) = fix, even if the render looks fine.
 4. **Verdict** — one of:
     - `pass` — matches brief, gate clean
     - `fix` — list each discrepancy as: what is wrong, which view shows it, what

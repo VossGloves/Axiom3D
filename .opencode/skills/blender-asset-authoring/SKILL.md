@@ -13,48 +13,63 @@ Every claim about the scene comes from a tool, never from memory.
 **Mandatory: you are the `axiom3d` director. Delegate via `task` — do not do
 specialist work yourself when a specialist exists.**
 
-1. **Reference** — `websearch` for orthographic drawings/diagrams of the target
-   asset before planning. Extract proportions, part counts, joint details,
-   silhouette. Never invent geometry from imagination when a reference exists.
-2. **Brief** — if the user prompt is sparse (missing dimensions, parts, materials,
-   style), delegate to `axiom3d-brief` with the raw prompt. It returns a structured
-   art brief (intent, dimensions with sources, parts, materials, style notes).
+1. **Interview** — every NEW asset: delegate raw prompt to `axiom3d-brief`
+   (`MODE: interview`). Returns one JSON block: question list (id, question,
+   header, options) or `ready: true`. Validate shape first: missing
+   `ready`/`questions`, or ready+questions both set = violation → re-delegate
+   once with schema reminder; still broken → build 2-3 questions yourself,
+   call `question` directly. Non-empty questions → `question` tool ONCE,
+   mapped 1:1 (drop `id`); TUI clickable picker, answers return as
+   `"question"="answer"` pairs. Format into `## User answers`, delegate
+   `MODE: brief` → structured brief. Ready only when raw prompt pins type +
+   dimensions + material + style; vague prompts ("make a train station") are
+   never ready — memory defaults don't close gaps. Never dump options as
+   plain markdown. Skip interview ONLY for explicit
+   fix/continue/resume/retry/re-run. Create/make/build verbs = interview,
+   even with a failed same-name asset in memory.
+2. **Reference** — after the brief exists, `websearch` orthographic
+   drawings/diagrams of the pinned variant. Extract proportions, part counts,
+   joint details, silhouette. Never invent geometry from imagination when a
+   reference exists.
 3. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
    data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
    before planning: confirm node names, socket names, pull a tested pattern
    snippet. Never guess API details; the gate rejects unknown symbols.
-3. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
+4. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
    (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
    `blender-assembly` for multi-part assets. Set transforms; author each asset's
    specific proportions and part counts in code.
-4. **Detail pass** — after basic shape passes gate, add visual density:
+5. **Detail pass** — after basic shape passes gate, add visual density:
    `blender-modify` for bevel/remesh/deform/instance; `ops.bevel_all_boxes()` or
    `ops.add_bevel(obj)` for soft edges (width 0.005m, angle-limited);
    `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
    for industrial fasteners; `blender-damage` for weathering/wear when the brief
    calls for aged/distressed surfaces.
-5. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
+6. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
    stage and re-run until `passed`. Route failures per the routing table below.
    `blender-validate` re-checks without executing; `blender-exec` is for
    scratch/read-only scripts. Pass `asset: <name>` on every gate call to
    record the result into memory.
-6. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
+7. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
-7. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect the
+8. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect the
    attached views against the brief. Wrong shape/proportion/missing part =
    fix and re-render, not a pass.
-8. **Export** — `blender-export` (glTF default) when a file is requested.
-9. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
+9. **Export** — `blender-export` (glTF default) when a file is requested.
+10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
 
 ## Memory
 
 `blender-memory` persists in `.axiom3d/memory/` (presets, assets, fixes). At the
-start of a brief: `presets.list` + `assets.get <name>` to reuse prior params and
-learn why the last gate failed. After success: `presets.save` the param set.
-`fixes.list` shows which repair strategies historically worked.
+start of an interview or brief: `presets.list` + `assets.get <name>` to learn why
+the last gate failed and which conventions held. Memory NEVER seeds composition,
+proportions, part layout, or silhouette — every generation is composed fresh from
+the current brief and reference. Prior params may inform unit scale only. After
+success: `presets.save` the param set. `fixes.list` shows which repair
+strategies historically worked.
 
 ## Routing (axiom3d director)
 
@@ -63,8 +78,13 @@ learn why the last gate failed. After success: `presets.save` the param set.
 
 | Situation | Delegate to |
 |---|---|
-| Sparse user prompt → needs expanded art brief | `axiom3d-brief` |
+| New asset gap analysis → JSON question list | `axiom3d-brief` (`MODE: interview`) |
+| Picker answers collected → structured brief | `axiom3d-brief` (`MODE: brief` + answers) |
 | Brief ready → plan needed (composition, params) | `axiom3d-planner` |
+
+Interview UI: the `question` tool (clickable picker, "Type your own answer"
+built in). Map brief JSON to tool params 1:1; drop `id`; never add catch-all
+options or dump options as markdown.
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
@@ -86,7 +106,8 @@ Issue vocabulary (fix all errors):
   `unapplied_scale`, `degenerate`, `missing_uv`, `over_budget`, `non_manifold`,
   `zero_area_faces`, `flipped_faces`, `no_mesh_objects`
 - mesh_quality: `not_watertight` (warning), `inconsistent_winding`, `zero_volume`,
-  `inverted_volume`, `self_intersection`, `object_intersection`, `boolean_failed`
+  `inverted_volume`, `self_intersection`, `object_intersection`, `floating_component`,
+  `boolean_failed`
 - roundtrip: `roundtrip_empty`, `roundtrip_object_count`, `roundtrip_bounds`,
   `roundtrip_tris`
 
@@ -101,6 +122,11 @@ Issue vocabulary (fix all errors):
 - Manifold, no flipped/zero-area faces, UV layer on every mesh, poly budget 100k.
   Opt-outs: `obj["open_surface"] = True` (intentional open surface),
   `obj["assembly"] = True` (multi-part asset whose members overlap at joints).
+  Joined multi-part meshes must be one touch-connected component group —
+  gaps between parts fail `floating_component` (assembly opts out of overlap
+  only, never gaps; rare intentional islands: `obj["disconnected_parts"] = True`).
+  Place joints from half-extents (`center = face ± (half_a + half_b)`), never
+  freehand relative offsets.
 - glTF export applies modifiers (`export_apply` on 5.2).
 
 ## Geometry Tools

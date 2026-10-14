@@ -150,6 +150,10 @@ when no library entry fits.
 ## Rules
 
 - 1 unit = 1 meter; origin at asset base; nothing floating or sunk.
+- Contact placement: for faces that must touch, compute centers from half-extents
+  (`center = face ± (half_a + half_b)`) and comment the arithmetic. Never freehand
+  relative offsets for joints — a gap fails gate `floating_component` (assembly
+  opt-out covers overlap only, never gaps).
 - Read geometry through the evaluated mesh in analysis code:
   `depsgraph = bpy.context.evaluated_depsgraph_get()`, `ev.to_mesh()`.
 - EXACT boolean solver; MANIFOLD crashes on multi-shell input.
@@ -160,6 +164,10 @@ when no library entry fits.
   `ops.scatter_details()`, `ops.bevel_all_boxes()`, etc.
 - Corpus patterns are references to adapt: study the technique, then write code
   with this asset's specific proportions and parameters.
+- No template library exists — never reference or attempt to call a template
+  instantiation tool. Compose every build from primitives, curves, booleans, and
+  modifiers with asset-specific code. Two builds of the same asset type must not
+  share silhouette unless the brief's reference demands it.
 - One risky mutation per script when recovery matters; the gate snapshots per run.
 - Scene-stage failures (geometry/mesh_quality) are NOT yours unless the director
   says the design must change — repair fixes those, you rewrite only on its report.

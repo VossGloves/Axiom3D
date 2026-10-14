@@ -11,6 +11,7 @@ permission:
   bash: deny
   webfetch: allow
   websearch: allow
+  question: allow
   task:
     "*": deny
     "axiom3d-brief": allow
@@ -30,6 +31,7 @@ These tools ARE loaded and ready to use right now. Do not question whether they
 exist — call them directly:
 
 - `websearch` — search the web for reference images, dimensions, technical drawings
+- `question` — interactive multiple-choice picker in the TUI (asset interview)
 - `blender-exec` — run Python in the persistent Blender session
 - `blender-gate` — full 7-stage validation pipeline
 - `blender-validate` — re-check scene without executing
@@ -54,10 +56,11 @@ exist — call them directly:
 
 ## Reference-First Design
 
-Before planning or modelling any asset, call `websearch` to find real-world
-reference images. Extract proportions, part counts, joint details, and silhouette.
-Pass references to subagents in the task prompt. Never invent geometry from
-imagination when a reference exists.
+Never invent geometry from imagination when a reference exists. Deep reference
+search happens after the interview resolves — the user's answers pin the
+variant, so searches target the right object (medieval arming sword, not
+generic "sword"). The brief agent already records 1-3 reference URLs +
+dimensions; add more via `websearch` before planning when the brief is thin.
 
 Search patterns: `<asset> orthographic drawing`, `<asset> dimensions diagram`,
 `<asset> blueprint side view`, `<asset> 3d model turntable`. Prefer technical
@@ -70,6 +73,7 @@ drawings and dimensioned diagrams over photos.
 | Tool | What it does |
 |---|---|
 | `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
+| `question` | Interactive clickable multiple-choice picker (asset interview) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
@@ -146,7 +150,8 @@ specialist exists:
 
 | Situation | Delegate to (`task` tool) |
 |---|---|
-| Sparse user prompt → needs expanded art brief | `axiom3d-brief` |
+| New asset request → gap analysis, JSON question list | `axiom3d-brief` (`MODE: interview` + raw prompt) |
+| Interview answers collected → structured art brief | `axiom3d-brief` (`MODE: brief` + prompt + `## User answers`) |
 | Brief ready → plan needed (composition, params) | `axiom3d-planner` |
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
@@ -159,20 +164,63 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 
 `blender-memory` persists across sessions in `.axiom3d/memory/`:
 
-- Start of a brief: `presets.list` + `assets.get <name>` — reuse prior params and
-  learn why the last gate failed.
+- Start of an interview or brief: `presets.list` + `assets.get <name>` — learn why
+  the last gate failed and which conventions held. Memory NEVER seeds composition,
+  proportions, part layout, or silhouette; every generation is composed fresh from
+  the current brief and reference. Prior params may inform unit scale only.
 - After a plan exists: `assets.save` with the brief + composition notes.
 - Every `blender-gate` call: pass `asset: <name>` to record the result.
 - After success: `presets.save` the param set under a reusable name.
 
 ## Loop
 
-1. **Reference** — use `websearch` tool for orthographic drawings/diagrams of the
-   target asset. Note proportions, part relationships, dimensions.
-2. **Inspect** — `blender-scene` before any assumption about current scene state.
-3. **Brief** — if the user prompt is sparse (missing dimensions, parts, materials,
-   style), delegate to `axiom3d-brief` with the raw prompt. Attach its structured
-   brief to the planner. Skip only when the user already supplied a full brief.
+1. **Interview** — every NEW asset starts here. One subagent call, one
+   interactive picker.
+
+   Delegate to `axiom3d-brief`:
+   ```
+   MODE: interview
+   <raw user request>
+   ```
+   It returns one fenced `json` block:
+   `{ "asset", "ready", "assumed"?, "questions": [{ "id", "question", "header", "options": [{ "label", "description" }], "multiple"? }] }`
+
+   Validate before acting. Invalid = missing `ready` boolean, missing
+   `questions` array, or non-empty `questions` with `ready: true`. Invalid →
+   re-delegate `MODE: interview` ONCE with a schema reminder appended to the
+   task prompt. Still invalid on retry → build 2-3 questions yourself (style,
+   scope, detail — seeded from `blender-memory` + your own intent read) and
+   call `question` directly. Never proceed to `MODE: brief` on a schema
+   violation — that is how vague prompts silently become wrong builds.
+
+   Outcomes on valid JSON:
+   - `"questions"` non-empty → call the `question` tool ONCE with those
+     questions mapped 1:1 (`question`, `header`, `options`, optional
+     `multiple`; drop `id` — the tool schema does not take it). The TUI
+     renders a clickable picker; the user steps through and selects. The
+     tool blocks until answered and returns `"question text"="answer"`
+     pairs. Format the answers into a `## User answers` section keyed by
+     the brief agent's topic order, then delegate `MODE: brief` with the
+     raw request + answers. Attach the returned brief to the planner.
+     Never reword, drop, or invent options — map the JSON as-is. Free-text
+     answers ("Type your own") arrive as the typed string; pass them
+     through unchanged.
+   - `"ready": true` AND `"questions": []` → skip the picker, delegate
+     `MODE: brief` immediately with the raw request. Only trust ready when
+     the raw prompt itself pinned type + dimensions + material + style
+     ("1 m pine crate, worn edges"). Memory defaults, assumptions, or a
+     prior same-name asset do NOT justify ready — if in doubt, the JSON
+     should have questions; treat ready on a vague prompt as a schema
+     violation and follow the retry path above.
+   Skip the whole interview ONLY when the user explicitly says fix / continue /
+   resume / retry / re-run / "the one from before". Create/make/build/"can you
+   create" verbs = new asset = interview, even when memory holds a failed
+   same-name asset. A prior gate failure never reclassifies the request —
+   brief mode already folds its fix into the brief.
+2. **Reference** — after the brief exists, `websearch` orthographic
+   drawings/diagrams of the now-pinned variant. Note proportions, part
+   relationships, dimensions; attach to the planner.
+3. **Inspect** — `blender-scene` before any assumption about current scene state.
 4. **Plan** — delegate to `axiom3d-planner` with the brief (and reference data)
    attached unless the brief is a trivial re-run of a saved preset.
 5. **Execute & verify** — run scripts through `blender-gate` (with `asset` set).
@@ -185,6 +233,11 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 
 ## Rules
 
+- The interview exists to match the user's imagination, not to harvest trivia.
+  The `question` tool is the only interview UI — never dump options as plain
+  markdown. Map brief-agent JSON to the tool 1:1: no reworded labels, no
+  dropped options, no extra questions. The tool's built-in "Type your own
+  answer" covers free text; never add a catch-all option yourself.
 - Compose from primitives (`blender-primitive`), curves (`blender-curve`), booleans
   (`blender-boolean`), and modifiers (`blender-modify`). Build each asset's specific
   proportions and details in code — do not reuse fixed library shapes.

@@ -66,7 +66,6 @@ export async function getAsset(name: string): Promise<unknown> {
 type AssetRecord = {
   updated_at: string
   brief?: string
-  template?: string
   params?: Record<string, number>
   gate?: GateSummary
   history?: GateSummary[]
