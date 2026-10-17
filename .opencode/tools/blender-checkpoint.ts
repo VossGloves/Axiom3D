@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin"
-import { request, snapshots } from "../lib/blender-client"
+import { request, snapshots, status } from "../lib/blender-client"
 
 export default tool({
   description:
@@ -25,7 +25,8 @@ export default tool({
       }
       if (args.action === "restore") {
         if (!args.id) return "ERROR: restore requires id (run action=list first)"
-        const result = await request<{ restored: string }>("restore", { id: args.id }, 60_000)
+        const result = await request<{ restored: string; handoff?: boolean }>("restore", { id: args.id }, 60_000)
+        if (result.handoff) await status()
         return `restored ${result.restored}`
       }
       return `ERROR: unknown action ${args.action}; expected save | list | restore`

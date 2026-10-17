@@ -24,7 +24,7 @@ from mathutils import Vector
 from api_index import load_or_build
 from gate.api_check import check_tree
 from geom.checks import DEFAULT_POLY_BUDGET, mesh_quality_report, scene_geometry_report
-from rpc.base import ExecScriptError
+from rpc.base import ExecScriptError, STATE, log_telemetry
 from rpc.session import cmd_exec, cmd_snapshot
 
 ROUNDTRIP_REL_TOL = 0.01
@@ -100,7 +100,20 @@ def run_gate(code, params):
         )
 
     if params.get("export_roundtrip", True):
-        stages.append(_roundtrip_stage(post_exec["path"]))
+        if STATE.get("mode") == "gui":
+            log_telemetry("worker.gui.gate_skip_roundtrip", snapshot=post_exec["id"])
+            stages.append(
+                {
+                    "name": "export_roundtrip",
+                    "passed": True,
+                    "skipped": True,
+                    "detail": {
+                        "reason": "skipped in gui mode because restoring the live scene would reload the addon bridge"
+                    },
+                }
+            )
+        else:
+            stages.append(_roundtrip_stage(post_exec["path"]))
 
     if params.get("render", True):
         stages.append(_render_stage(params))

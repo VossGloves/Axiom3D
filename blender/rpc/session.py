@@ -16,6 +16,8 @@ from rpc.base import (
     ExecScriptError,
     WorkerError,
     call_op,
+    log_error,
+    log_telemetry,
     require_live,
     scene_diff,
     scene_summary,
@@ -50,6 +52,12 @@ def cmd_restore(params):
     path = os.path.join(SNAP_DIR, snap_id + ".blend")
     if not os.path.exists(path):
         raise WorkerError("NotFound", f"no snapshot {snap_id}")
+    if STATE.get("mode") == "gui":
+        STATE["poisoned"] = False
+        STATE["last_snapshot"] = snap_id
+        write_port_file()
+        _schedule_mainfile_open(path, "restore", snap_id)
+        return {"restored": snap_id, "handoff": True}
     result = call_op(bpy.ops.wm.open_mainfile, filepath=path)
     if "FINISHED" not in result:
         raise WorkerError("RestoreFailed", f"open_mainfile returned {result}")
@@ -64,6 +72,65 @@ def cmd_reset(params):
     STATE["poisoned"] = False
     write_port_file()
     return {"reset": True}
+
+
+def cmd_open_file(params):
+    target = params.get("path")
+    if not isinstance(target, str) or not target:
+        raise WorkerError("BadRequest", "open_file requires params.path")
+    if not os.path.exists(target):
+        raise WorkerError("NotFound", target)
+    ext = os.path.splitext(target)[1].lower()
+    mode = params.get("mode", "auto")
+    is_open = ext == ".blend" and mode != "import"
+    if is_open:
+        if STATE.get("mode") == "gui":
+            _schedule_mainfile_open(target, "open_file")
+            return {"action": "opened", "file": target, "handoff": True}
+        result = call_op(bpy.ops.wm.open_mainfile, filepath=target)
+        if "FINISHED" not in result:
+            raise WorkerError("OpenFailed", f"open_mainfile returned {result}")
+        return {"action": "opened", "file": target, "handoff": False, "objects": len(bpy.data.objects)}
+    _import_file(target, ext)
+    return {"action": "imported", "file": target, "handoff": False, "objects": len(bpy.data.objects)}
+
+
+def _schedule_mainfile_open(path, reason, snapshot_id=None):
+    log_telemetry("worker.gui.mainfile_handoff_scheduled", path=path, reason=reason, snapshot=snapshot_id)
+
+    def _open_mainfile():
+        try:
+            bpy.ops.wm.open_mainfile(filepath=path)
+        except Exception:
+            log_error()
+        return None
+
+    bpy.app.timers.register(_open_mainfile, first_interval=0.0)
+
+
+def _import_file(path, ext):
+    if ext in (".glb", ".gltf"):
+        call_op(bpy.ops.import_scene.gltf, filepath=path)
+        return
+    if ext == ".fbx":
+        call_op(bpy.ops.import_scene.fbx, filepath=path)
+        return
+    if ext == ".obj":
+        call_op(bpy.ops.wm.obj_import, filepath=path)
+        return
+    if ext in (".usd", ".usda", ".usdc"):
+        call_op(bpy.ops.wm.usd_import, filepath=path)
+        return
+    if ext == ".ply":
+        call_op(bpy.ops.import_mesh.ply, filepath=path)
+        return
+    if ext == ".stl":
+        call_op(bpy.ops.import_mesh.stl, filepath=path)
+        return
+    if ext == ".abc":
+        call_op(bpy.ops.wm.alembic_import, filepath=path)
+        return
+    raise WorkerError("BadRequest", f"unsupported extension {ext}")
 
 
 def cmd_exec(params):
