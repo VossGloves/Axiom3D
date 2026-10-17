@@ -16,6 +16,7 @@ AXIOM_DIR = os.path.join(ROOT, ".axiom3d")
 PORT_FILE = os.path.join(AXIOM_DIR, "blender.port")
 SNAP_DIR = os.path.join(AXIOM_DIR, "snapshots")
 LOG_FILE = os.path.join(AXIOM_DIR, "worker.log")
+TELEMETRY_FILE = os.path.join(AXIOM_DIR, "blender-bridge.jsonl")
 SNAP_KEEP = 10
 
 # bpy is main-thread-only: handler threads enqueue jobs, the main thread pumps them.
@@ -32,6 +33,7 @@ STATE = {
     "version": "",
 }
 PORT_LOCK = threading.Lock()
+TELEMETRY_LOCK = threading.Lock()
 
 
 class WorkerError(Exception):
@@ -54,6 +56,20 @@ def log_error():
         handle.write("\n")
 
 
+def log_telemetry(event, **fields):
+    payload = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "event": event,
+        "worker_pid": os.getpid(),
+        **fields,
+    }
+    os.makedirs(AXIOM_DIR, exist_ok=True)
+    with TELEMETRY_LOCK:
+        with open(TELEMETRY_FILE, "a", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.write("\n")
+
+
 def write_port_file():
     payload = {
         "port": write_port_file.port,
@@ -68,6 +84,15 @@ def write_port_file():
         with open(tmp, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
     os.replace(tmp, PORT_FILE)
+
+
+def clear_port_file():
+    with PORT_LOCK:
+        for path in (PORT_FILE, PORT_FILE + ".tmp"):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
 
 
 def call_op(op, **kwargs):

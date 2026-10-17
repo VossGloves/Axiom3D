@@ -24,13 +24,14 @@ import traceback
 import bpy
 
 from rpc import dispatch
-from rpc.base import AXIOM_DIR, STATE, log_error, ping_result, write_port_file
+from rpc.base import AXIOM_DIR, PORT_FILE, STATE, clear_port_file, log_error, log_telemetry, ping_result, write_port_file
 
 # bpy is main-thread-only: handler threads enqueue jobs, the main thread pumps them.
 JOBS: queue.Queue = queue.Queue()
 
 # Set by transport.run(); None until server starts.
 _server = None
+_server_thread = None
 
 # How long the main thread must stay free after a poison before auto-clearing.
 # Long enough that a still-stuck exec would keep the pump blocked; short enough
@@ -93,6 +94,7 @@ class Handler(socketserver.StreamRequestHandler):
             STATE["poisoned"] = True
             STATE["poisoned_at"] = time.monotonic()
             write_port_file()
+            log_telemetry("worker.poisoned", cmd=cmd, wait_s=round(wait, 3), mode=STATE.get("mode", "headless"))
             return {
                 "id": request.get("id"),
                 "ok": False,
@@ -128,6 +130,11 @@ def maybe_unpoison():
         STATE["poisoned"] = False
         STATE["poisoned_at"] = None
         write_port_file()
+        log_telemetry("worker.unpoisoned", mode=STATE.get("mode", "headless"))
+
+
+def server_running():
+    return _server is not None and _server_thread is not None and _server_thread.is_alive()
 
 
 def pump_one():
@@ -158,8 +165,12 @@ def _gui_timer():
     try:
         # Self-heal: a crashed/closed TCP server left Blender alive but unreachable.
         # Restart it instead of requiring the user to click Start Server.
-        if STATE.get("mode") == "gui" and not STATE.get("manual_stop") and _server is None:
+        if STATE.get("mode") == "gui" and not STATE.get("manual_stop") and not server_running():
+            log_telemetry("worker.gui.self_heal_restart")
             start_server(mode="gui")
+        elif STATE.get("mode") == "gui" and server_running() and not os.path.exists(PORT_FILE):
+            write_port_file()
+            log_telemetry("worker.gui.port_file_rewritten", port=write_port_file.port)
         while pump_one():
             pass
     except Exception:
@@ -178,14 +189,17 @@ def start_server(mode="headless"):
     Does NOT start the pump — caller owns main thread and must call pump loops.
     Safe to call again after a crash: replaces any previous server object.
     """
-    global _server
+    global _server, _server_thread
     os.makedirs(AXIOM_DIR, exist_ok=True)
     STATE["version"] = bpy.app.version_string
     STATE["mode"] = mode
     STATE["manual_stop"] = False
+    STATE["poisoned"] = False
+    STATE["poisoned_at"] = None
     if _server is not None:
         try:
-            _server.shutdown()
+            if server_running():
+                _server.shutdown()
             _server.server_close()
         except Exception:
             log_error()
@@ -194,21 +208,40 @@ def start_server(mode="headless"):
     server.daemon_threads = True
     write_port_file.port = server.server_address[1]
     write_port_file()
-    threading.Thread(target=server.serve_forever, name="axiom3d-accept", daemon=True).start()
+    _server_thread = threading.Thread(target=server.serve_forever, name="axiom3d-accept", daemon=True)
+    _server_thread.start()
     _server = server
+    log_telemetry("worker.server.started", mode=mode, port=write_port_file.port)
     print(f"AXIOM3D_WORKER_READY port={write_port_file.port} pid={os.getpid()} mode={mode}", flush=True)
     return server
 
 
-def stop_server():
-    """Stop the TCP server. Safe to call multiple times. Marks intentional stop so
-    the GUI timer does not auto-restart until Start Server is clicked again."""
-    global _server
-    STATE["manual_stop"] = True
+def stop_server(manual_stop=True, clear_port=True, unregister_timer=True, reason="manual_stop"):
+    """Stop the TCP server.
+
+    `manual_stop=False` is for addon unload/reload paths where Blender stays alive and
+    the next register() should be free to bring the bridge back without looking like a
+    user-requested shutdown.
+    """
+    global _server, _server_thread
+    STATE["manual_stop"] = manual_stop
     if _server:
-        _server.shutdown()
+        if server_running():
+            _server.shutdown()
         _server.server_close()
         _server = None
+    _server_thread = None
+    if unregister_timer and bpy.app.timers.is_registered(_gui_timer):
+        bpy.app.timers.unregister(_gui_timer)
+    if clear_port:
+        clear_port_file()
+    log_telemetry(
+        "worker.server.stopped",
+        mode=STATE.get("mode", "headless"),
+        manual_stop=manual_stop,
+        reason=reason,
+        port=write_port_file.port,
+    )
 
 
 def run_background():
@@ -242,4 +275,5 @@ def run_gui():
     if bpy.app.background:
         raise RuntimeError("GUI mode requires Blender with a window; use worker.py for headless")
     start_server(mode="gui")
-    bpy.app.timers.register(_gui_timer, first_interval=0.05, persistent=True)
+    if not bpy.app.timers.is_registered(_gui_timer):
+        bpy.app.timers.register(_gui_timer, first_interval=0.05, persistent=True)

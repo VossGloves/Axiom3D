@@ -24,6 +24,7 @@ import os
 import sys
 
 import bpy
+from bpy.app.handlers import persistent
 
 # Bootstrap: find blender/ parent directory and add to sys.path so transport/rpc import.
 # When installed as addon (symlink or copy), resolve symlink to find actual location.
@@ -46,13 +47,38 @@ import transport  # noqa: E402
 from rpc.base import AXIOM_DIR, STATE  # noqa: E402
 
 
+AUTO_START_DELAY_S = 0.2
+
+
+def _schedule_auto_start(delay=AUTO_START_DELAY_S):
+    if bpy.app.timers.is_registered(_auto_start):
+        return
+    bpy.app.timers.register(_auto_start, first_interval=delay, persistent=True)
+
+
+def _remove_load_post_handler():
+    bpy.app.handlers.load_post[:] = [
+        handler
+        for handler in bpy.app.handlers.load_post
+        if not (getattr(handler, "__name__", "") == "_load_post" and getattr(handler, "__module__", "") == __name__)
+    ]
+
+
+def _addon_enabled():
+    try:
+        addons = bpy.context.preferences.addons
+    except Exception:
+        return False
+    return addons.get(__name__) is not None
+
+
 class AXIOM3D_OT_start(bpy.types.Operator):
     """Start Axiom3D socket server"""
     bl_idname = "axiom3d.start_server"
     bl_label = "Start Server"
 
     def execute(self, context):
-        if not bpy.app.background and STATE.get("mode") == "gui":
+        if transport.server_running() and STATE.get("mode") == "gui":
             self.report({"INFO"}, "Axiom3D server already running")
             return {"CANCELLED"}
         try:
@@ -70,8 +96,7 @@ class AXIOM3D_OT_stop(bpy.types.Operator):
     bl_label = "Stop Server"
 
     def execute(self, context):
-        transport.stop_server()
-        # Unregister timer by marking poisoned and letting it die next tick.
+        transport.stop_server(reason="operator_stop")
         STATE["poisoned"] = True
         self.report({"INFO"}, "Stopped")
         return {"FINISHED"}
@@ -87,7 +112,7 @@ class AXIOM3D_PT_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        running = STATE.get("mode") == "gui" and not STATE.get("poisoned", True)
+        running = transport.server_running() and STATE.get("mode") == "gui" and not STATE.get("poisoned", False)
         if running:
             port = transport.write_port_file.port if hasattr(transport, "write_port_file") else "?"
             layout.label(text=f"Running on port {port}")
@@ -101,7 +126,7 @@ def _auto_start():
     """Timer callback: auto-start server if enabled and not already running."""
     if bpy.context.preferences.addons.get(__name__) is None:
         return None  # addon disabled, unregister timer
-    if STATE.get("mode") != "gui" and not bpy.app.background:
+    if not transport.server_running() and not bpy.app.background:
         try:
             transport.run_gui()
         except Exception:
@@ -109,16 +134,34 @@ def _auto_start():
     return None  # one-shot timer
 
 
+@persistent
+def _load_post(_unused):
+    if bpy.app.background:
+        return
+    _schedule_auto_start(0.05)
+
+
 def register():
     bpy.utils.register_class(AXIOM3D_OT_start)
     bpy.utils.register_class(AXIOM3D_OT_stop)
     bpy.utils.register_class(AXIOM3D_PT_panel)
-    # Delayed auto-start so Blender finishes loading before binding socket.
-    bpy.app.timers.register(_auto_start, first_interval=1.0, persistent=True)
+    _remove_load_post_handler()
+    bpy.app.handlers.load_post.append(_load_post)
+    # Brief delay gives Blender a moment to settle after addon register / reload.
+    _schedule_auto_start()
 
 
 def unregister():
-    transport.stop_server()
+    enabled = _addon_enabled()
+    if bpy.app.timers.is_registered(_auto_start):
+        bpy.app.timers.unregister(_auto_start)
+    if not enabled:
+        _remove_load_post_handler()
+    transport.stop_server(
+        manual_stop=not enabled,
+        clear_port=not enabled,
+        reason="addon_disable" if not enabled else "addon_unregister",
+    )
     bpy.utils.unregister_class(AXIOM3D_OT_start)
     bpy.utils.unregister_class(AXIOM3D_OT_stop)
     bpy.utils.unregister_class(AXIOM3D_PT_panel)

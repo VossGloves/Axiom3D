@@ -28,39 +28,20 @@ export default tool({
       return `ERROR: unsupported extension .${ext}. Use .blend (open) or .glb/.gltf/.fbx/.obj/.usd/.ply/.stl (import).`
     }
 
-    const code = isOpen
-      ? `import bpy
-bpy.ops.wm.open_mainfile(filepath=${JSON.stringify(target)})
-result = {"objects": len(bpy.data.objects), "file": bpy.data.filepath}`
-      : `import bpy, os
-if not os.path.exists(${JSON.stringify(target)}):
-    raise FileNotFoundError(${JSON.stringify(target)})
-ext = ${JSON.stringify(ext)}
-if ext in ("glb", "gltf"):
-    bpy.ops.import_scene.gltf(filepath=${JSON.stringify(target)})
-elif ext == "fbx":
-    bpy.ops.import_scene.fbx(filepath=${JSON.stringify(target)})
-elif ext == "obj":
-    bpy.ops.wm.obj_import(filepath=${JSON.stringify(target)})
-elif ext in ("usd", "usda", "usdc"):
-    bpy.ops.wm.usd_import(filepath=${JSON.stringify(target)})
-elif ext == "ply":
-    bpy.ops.import_mesh.ply(filepath=${JSON.stringify(target)})
-elif ext == "stl":
-    bpy.ops.import_mesh.stl(filepath=${JSON.stringify(target)})
-result = {"objects": len(bpy.data.objects), "added_hint": "imported ${ext}"}`
-
     try {
-      const result = await request<{ stdout: string; error: unknown }>(
-        "exec",
-        { code, timeout: 60 },
+      const result = await request<{ action: string; file: string; handoff?: boolean; objects?: number }>(
+        "open_file",
+        { path: target, mode: args.mode },
         70_000,
       )
-      if (result.error) {
-        return `ERROR: import failed — ${JSON.stringify(result.error)}`
+      if (result.handoff) {
+        await status()
+        const summary = await request<{ file: string; objects: Record<string, number> }>("query", { kind: "summary" }, 30_000)
+        const meshCount = summary.objects.MESH ?? 0
+        return `Opened ${target}\nfile: ${summary.file}\nmesh_objects: ${meshCount}`
       }
       const action = isOpen ? "Opened" : "Imported"
-      return `${action} ${target}\n${result.stdout.trim()}`
+      return `${action} ${result.file}\nobjects: ${result.objects ?? 0}`
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

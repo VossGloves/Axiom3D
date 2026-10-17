@@ -5,17 +5,20 @@
 // race the scene and snapshot pool). ~30-60s total: worker startup + renders
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { rm } from "node:fs/promises"
 import { join } from "node:path"
 import { exec, request, restart, status, stop } from "../../.opencode/lib/blender-client"
 import type { ExecResult } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
+const TELEMETRY_FILE = join(ROOT, ".axiom3d", "blender-bridge.jsonl")
 
 function objects() {
   return request<{ objects: Array<{ name: string; vertices?: number }> }>("query", { kind: "objects" })
 }
 
 beforeAll(async () => {
+  await rm(TELEMETRY_FILE, { force: true })
   await status()
   await request("reset")
 }, 90_000)
@@ -134,4 +137,15 @@ describe("watchdog", () => {
     const after = await objects()
     expect(after.objects.some((o) => o.name === "crate_test")).toBe(true)
   }, 60_000)
+
+  test("bridge telemetry records spawn and restart recovery", async () => {
+    const entries = (await Bun.file(TELEMETRY_FILE).text())
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { event?: string; snapshot?: string | null })
+    expect(entries.some((entry) => entry.event === "client.spawn.ready")).toBe(true)
+    expect(entries.some((entry) => entry.event === "client.restart.begin")).toBe(true)
+    expect(entries.some((entry) => entry.event === "client.restart.restore_succeeded")).toBe(true)
+  })
 })

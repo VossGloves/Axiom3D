@@ -25,6 +25,7 @@ COMMANDS = {
     "exec": session.cmd_exec,
     "snapshot": session.cmd_snapshot,
     "restore": session.cmd_restore,
+    "open_file": session.cmd_open_file,
     "reset": session.cmd_reset,
     "query": session.cmd_query,
     "render": render.cmd_render,
