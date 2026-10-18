@@ -19,7 +19,7 @@ function objects() {
 
 beforeAll(async () => {
   await rm(TELEMETRY_FILE, { force: true })
-  await status()
+  await restart()
   await request("reset")
 }, 90_000)
 
@@ -51,6 +51,18 @@ print("cube created")
     const crate = list.find((o) => o.name === "crate_test")
     expect(crate).toBeDefined()
     expect(crate?.vertices).toBe(8)
+  })
+
+  test("geometry query reports evaluated mesh stats", async () => {
+    const geometry = await request<{
+      scene: { mesh_count: number; total_tris: number; flagged_objects: string[] }
+      objects: Array<{ name: string; evaluated_mesh: { tris: number; connected_components: number } }>
+    }>("query", { kind: "geometry" })
+    const crate = geometry.objects.find((entry) => entry.name === "crate_test")
+    expect(geometry.scene.mesh_count).toBeGreaterThanOrEqual(1)
+    expect(geometry.scene.flagged_objects).toEqual([])
+    expect(crate?.evaluated_mesh.tris).toBe(12)
+    expect(crate?.evaluated_mesh.connected_components).toBe(1)
   })
 
   test("script errors are captured, not fatal", async () => {
@@ -95,13 +107,14 @@ describe("render and export", () => {
   test("workbench multi-view render writes PNGs", async () => {
     // timeout is generous: CI renders via software GL (llvmpipe under Xvfb), slower
     // than a GPU. Workbench is CPU-only but still needs a GL context.
-    const result = await request<{ files: string[]; engine_used: string }>(
+    const result = await request<{ files: string[]; views: Array<{ view: string; file: string }>; engine_used: string }>(
       "render",
       { engine: "WORKBENCH", views: ["front", "iso"], width: 320, height: 180 },
       240_000,
     )
     expect(result.engine_used).toBe("BLENDER_WORKBENCH")
     expect(result.files.length).toBe(2)
+    expect(result.views.map((entry) => entry.view)).toEqual(["front", "iso"])
     for (const file of result.files) {
       expect(await Bun.file(file).exists()).toBe(true)
     }

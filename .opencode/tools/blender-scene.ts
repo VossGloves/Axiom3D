@@ -8,7 +8,7 @@ export default tool({
     kind: tool.schema
       .string()
       .default("summary")
-      .describe("summary | objects | materials | node_groups"),
+      .describe("summary | objects | geometry | materials | node_groups"),
   },
   async execute(args) {
     try {
