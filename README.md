@@ -63,7 +63,7 @@ bun install
 # Point the harness at your Blender install (or let it auto-discover on Windows):
 export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
 
-# Install the one Python dep into Blender's bundled interpreter:
+# Install Blender Python deps into Blender's bundled interpreter:
 "<blender>/5.2/python/bin/python" -m pip install --no-deps \
   --target blender/vendor -r blender/requirements.txt
 
@@ -82,6 +82,8 @@ axiom3d
 Ask it to build something — e.g. *"make a 1 m crate"* or *"model a wooden chair with
 soft bevels"*. The agent retrieves the API, composes geometry from primitives and
 modifiers with the brief's proportions, and runs the gate until the asset passes.
+Vendored Python deps include `trimesh` for mesh analysis and `scipy` for optimization,
+interpolation, smoothing, and spatial search.
 
 The full design, phase history, and conventions live in [`PLAN.md`](./PLAN.md) and
 [`docs/axiom3d/conventions.md`](./docs/axiom3d/conventions.md).

@@ -78,6 +78,7 @@ exist — call them directly:
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
+| `scipy` | Optimization, interpolation, smoothing, KD-tree search (vendored, import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 | `json` | Data serialization (stdlib) |
 | `os` | Filesystem paths (stdlib) |
@@ -134,6 +135,8 @@ when no library entry fits.
 4. **Compose** — build from primitives, curves, and booleans. Write the specific
    proportions and part counts from the plan into the script. Use `blender-modify`
    / `ops` helpers for bevel/remesh/deform/instance passes when the plan calls for them.
+   If adjacent parts should read as one continuous body, union/remesh them and
+   smooth normals; do not leave visible Lego-like section seams.
 5. **Bevel** — after base geometry is correct, apply bevel to hard-surface objects:
    `ops.add_bevel(obj, width=0.005, segments=2)` or `ops.bevel_all_boxes()` for
    quick pass. Scale width to asset size (0.005m furniture, 0.02m building).
@@ -154,6 +157,8 @@ when no library entry fits.
   (`center = face ± (half_a + half_b)`) and comment the arithmetic. Never freehand
   relative offsets for joints — a gap fails gate `floating_component` (assembly
   opt-out covers overlap only, never gaps).
+- For smooth continuous surfaces, avoid stacked coplanar boxes. Prefer boolean
+  union or voxel remesh, then `ops.smooth_by_angle(obj)` and bevel where needed.
 - Read geometry through the evaluated mesh in analysis code:
   `depsgraph = bpy.context.evaluated_depsgraph_get()`, `ev.to_mesh()`.
 - EXACT boolean solver; MANIFOLD crashes on multi-shell input.
@@ -161,7 +166,7 @@ when no library entry fits.
   to float.
 - `ops` module is available in the exec namespace: `ops.add_bevel()`,
   `ops.add_boolean()`, `ops.add_remesh()`, `ops.add_deform()`, `ops.instance_object()`,
-  `ops.scatter_details()`, `ops.bevel_all_boxes()`, etc.
+  `ops.scatter_details()`, `ops.bevel_all_boxes()`, `ops.smooth_by_angle()`, etc.
 - Corpus patterns are references to adapt: study the technique, then write code
   with this asset's specific proportions and parameters.
 - No template library exists — never reference or attempt to call a template

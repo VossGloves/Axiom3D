@@ -102,6 +102,7 @@ drawings and dimensioned diagrams over photos.
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
+| `scipy` | Optimization, interpolation, smoothing, KD-tree search (vendored, import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 | `json` | Data serialization (stdlib) |
 | `os` | Filesystem paths (stdlib) |
