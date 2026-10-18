@@ -7,6 +7,7 @@ multi-shell). Returns modifier stats; caller runs gate to verify.
 
 import bpy
 
+from ops.modifiers import smooth_by_angle
 from rpc.base import WorkerError, call_op
 
 
@@ -42,6 +43,7 @@ def cmd_run_boolean(params):
         target.select_set(True)
         bpy.context.view_layer.objects.active = target
         call_op(bpy.ops.object.modifier_apply, modifier=mod.name)
+        smooth_by_angle(target)
         # Remove cutter after successful apply (consumed)
         bpy.data.objects.remove(cutter, do_unlink=True)
         cutter_removed = True
@@ -98,6 +100,7 @@ def cmd_batch_boolean(params):
             target.select_set(True)
             bpy.context.view_layer.objects.active = target
             call_op(bpy.ops.object.modifier_apply, modifier=mod.name)
+            smooth_by_angle(target)
             bpy.data.objects.remove(cutter, do_unlink=True)
 
         results.append({

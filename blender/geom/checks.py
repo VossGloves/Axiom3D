@@ -200,8 +200,8 @@ def mesh_quality_report(volume_epsilon=1e-6):
 def _face_components(shape):
     """Connected components (shells) via union-find over face adjacency.
 
-    trimesh's own split() needs a graph engine (scipy/networkx) we deliberately do
-    not install into Blender's Python; face_adjacency is plain numpy.
+    trimesh's own split() needs a graph engine (scipy/networkx). We keep this helper
+    self-contained and based on face_adjacency so mesh checks do not depend on either.
     """
     parent = list(range(len(shape.faces)))
 

@@ -79,6 +79,7 @@ exist — call them directly:
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
+| `scipy` | Optimization, interpolation, smoothing, KD-tree search (vendored, import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 
 ### Corpus reference patterns (retrieve via `blender-docs`)
@@ -102,7 +103,9 @@ exist — call them directly:
 3. **Brief check** — compare against the stated brief: correct parts present, sane
    proportions, no floating/sunk geometry, naming visible in `blender-scene`.
    Joined multi-part mesh with gaps between intended joints (gate
-   `floating_component`) = fix, even if the render looks fine.
+   `floating_component`) = fix, even if the render looks fine. If a surface that
+   should read continuous shows section lines, box seams, or Lego-like breakups,
+   call `fix` and say which objects need union/remesh/bevel/smoother normals.
 4. **Verdict** — one of:
     - `pass` — matches brief, gate clean
     - `fix` — list each discrepancy as: what is wrong, which view shows it, what

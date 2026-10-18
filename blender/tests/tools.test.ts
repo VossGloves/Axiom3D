@@ -78,6 +78,28 @@ print("made crate")`,
     expect(output).toContain('"crate_tool"')
   })
 
+  test("exec imports scipy for optimize and cKDTree", async () => {
+    const output = (await tools.exec.execute(
+      {
+        code: `import numpy as np
+from scipy import optimize
+from scipy.spatial import cKDTree
+
+root = optimize.root_scalar(lambda x: x * x - 2.0, bracket=[1.0, 2.0])
+tree = cKDTree(np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [3.0, 3.0, 3.0]]))
+distance, index = tree.query([0.9, 0.95, 1.1])
+print(f"root={root.root:.6f}")
+print(f"nearest_index={int(index)}")
+print(f"nearest_distance={float(distance):.6f}")`,
+        timeout: 30,
+      },
+      context,
+    )) as string
+    expect(output).toContain("status: ok")
+    expect(output).toContain("root=1.414214")
+    expect(output).toContain("nearest_index=1")
+  })
+
   test("scene reports it", async () => {
     const output = (await tools.scene.execute({ kind: "objects" }, context)) as string
     const parsed = JSON.parse(output) as { objects: Array<{ name: string; vertices?: number }> }

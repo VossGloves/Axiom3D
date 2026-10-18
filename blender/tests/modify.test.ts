@@ -72,6 +72,26 @@ describe("modify", () => {
     expect(output).toContain("Bevel")
   })
 
+  test("primitive creation sets smooth-by-angle normals", async () => {
+    await blenderPrimitive.execute({ kind: "cylinder", radius: 0.5, depth: 1, name: "smooth_target", location: [3, 0, 0.5] }, context)
+    const output = (await blenderExec.execute(
+      {
+        code: `obj = bpy.data.objects["smooth_target"]
+mesh = obj.data
+sharp = mesh.attributes["sharp_edge"]
+print(f"smooth_faces={sum(1 for poly in mesh.polygons if poly.use_smooth)}")
+print(f"polys={len(mesh.polygons)}")
+print(f"sharp_edges={sum(1 for item in sharp.data if item.value)}")
+print(f"edges={len(mesh.edges)}")`,
+        timeout: 30,
+      },
+      context,
+    )) as string
+    expect(output).toContain("status: ok")
+    expect(output).toContain("smooth_faces=34")
+    expect(output).toContain("polys=34")
+  })
+
   test("array adds an array modifier", async () => {
     await blenderPrimitive.execute({ kind: "cube", size: 0.5, name: "array_target", location: [4, 0, 0.25] }, context)
     const output = (await blenderModify.execute(

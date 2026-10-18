@@ -37,11 +37,14 @@ specialist work yourself when a specialist exists.**
    snippet. Never guess API details; the gate rejects unknown symbols.
 4. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
    (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
-   `blender-assembly` for multi-part assets. Set transforms; author each asset's
-   specific proportions and part counts in code.
+   `blender-assembly` for multi-part assets. When forms should read as one skin,
+   boolean-union or remesh them; do not leave stacked coplanar boxes that read
+   like Lego pieces. Set transforms; author each asset's specific proportions and
+   part counts in code.
 5. **Detail pass** — after basic shape passes gate, add visual density:
    `blender-modify` for bevel/remesh/deform/instance; `ops.bevel_all_boxes()` or
    `ops.add_bevel(obj)` for soft edges (width 0.005m, angle-limited);
+   `ops.smooth_by_angle(obj)` when you need cleaner shading without rounding;
    `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
    for industrial fasteners; `blender-damage` for weathering/wear when the brief
    calls for aged/distressed surfaces.
@@ -55,8 +58,9 @@ specialist work yourself when a specialist exists.**
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
 8. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect the
-   attached views against the brief. Wrong shape/proportion/missing part =
-   fix and re-render, not a pass.
+   attached views against the brief. Wrong shape/proportion/missing part, or
+   visible panel seams on what should be one continuous surface = fix and
+   re-render, not a pass.
 9. **Export** — `blender-export` (glTF default) when a file is requested.
 10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
