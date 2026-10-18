@@ -88,6 +88,7 @@ def cmd_render(params):
         raise WorkerError("BadRequest", f"no matching views for {wanted}")
 
     files = []
+    rendered_views = []
     try:
         for name, direction in views:
             direction_v = Vector(direction).normalized()
@@ -105,6 +106,7 @@ def cmd_render(params):
                 else:
                     raise WorkerError("RenderFailed", str(exc))
             files.append(path)
+            rendered_views.append({"view": name, "file": path})
     finally:
         for temp in (camera, sun):
             if temp:
@@ -112,4 +114,4 @@ def cmd_render(params):
         scene.camera = saved["camera"]
         scene.render.engine = saved["engine"]
         scene.render.resolution_x, scene.render.resolution_y = saved["resolution"]
-    return {"files": files, "engine_used": engine_used, "outdir": outdir}
+    return {"files": files, "views": rendered_views, "engine_used": engine_used, "outdir": outdir}

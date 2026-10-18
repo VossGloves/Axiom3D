@@ -27,6 +27,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
+- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -55,7 +56,8 @@ exist — call them directly:
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
-| `blender-scene` | Query scene state (objects, materials, node groups) |
+| `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
+| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -95,8 +97,9 @@ exist — call them directly:
 
 ## Loop
 
-1. **Renders** — `blender-render` (Workbench is fine for shape critique). Inspect
-   every attached view: front, back, left, right, top, iso.
+1. **Vision** — `blender-vision` in `full` mode. Inspect every attached view:
+   front, back, left, right, top, iso. Use returned geometry summary to anchor
+   scale/proportion claims.
 2. **Report** — if a gate report is attached or the scene has known issues, read
    it: residual errors beat a pretty render. `blender-validate` re-checks the live
    scene without executing anything.
@@ -118,10 +121,13 @@ exist — call them directly:
 
 - Shape and completeness beat surface polish; materials are last.
 - Never edit or write anything. You judge; others fix.
-- A render can lie about scale — cross-check dimensions via `blender-scene`
+- Always use fresh `blender-vision` in `full` mode before a `pass` verdict.
+- If the scene changed, was restored, or had an interruption since the last vision call, rerun `blender-vision` in `full` mode before judging.
+- If a gate failed on geometry, mesh quality, or design-level issues, use `blender-vision` in `full` mode before deciding whether the render is acceptable.
+- A render can lie about scale — cross-check dimensions via `blender-vision` or `blender-scene`
   before calling proportion errors.
-- If `blender-render` fails, review via `blender-scene` geometry summary and say
-  the verdict is geometry-only.
+- If `blender-vision` render fails, review via its geometry summary or `blender-scene`
+  and say the verdict is geometry-only. If needed, fall back to `blender-render`.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact
   error. Do not guess from file creation times.

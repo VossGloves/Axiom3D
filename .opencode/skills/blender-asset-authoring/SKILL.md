@@ -31,38 +31,46 @@ specialist work yourself when a specialist exists.**
    drawings/diagrams of the pinned variant. Extract proportions, part counts,
    joint details, silhouette. Never invent geometry from imagination when a
    reference exists.
-3. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
+3. **Inspect** — start Blender work with `blender-vision` (`quick`). After any
+   scene mutation, refresh with `blender-vision` (`quick`) before making claims
+   about current scene contents if the last vision is stale.
+4. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
    data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
    before planning: confirm node names, socket names, pull a tested pattern
    snippet. Never guess API details; the gate rejects unknown symbols.
-4. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
+5. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
    (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
    `blender-assembly` for multi-part assets. When forms should read as one skin,
    boolean-union or remesh them; do not leave stacked coplanar boxes that read
    like Lego pieces. Set transforms; author each asset's specific proportions and
    part counts in code.
-5. **Detail pass** — after basic shape passes gate, add visual density:
+6. **Detail pass** — after basic shape passes gate, add visual density:
    `blender-modify` for bevel/remesh/deform/instance; `ops.bevel_all_boxes()` or
    `ops.add_bevel(obj)` for soft edges (width 0.005m, angle-limited);
    `ops.smooth_by_angle(obj)` when you need cleaner shading without rounding;
    `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
    for industrial fasteners; `blender-damage` for weathering/wear when the brief
    calls for aged/distressed surfaces.
-6. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
+7. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
    stage and re-run until `passed`. Route failures per the routing table below.
    `blender-validate` re-checks without executing; `blender-exec` is for
    scratch/read-only scripts. Pass `asset: <name>` on every gate call to
    record the result into memory.
-7. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
+8. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
-8. **Critique** — delegate to `axiom3d-reviewer`: `blender-render` and inspect the
-   attached views against the brief. Wrong shape/proportion/missing part, or
+   After gate failure with geometry or design-level issues, run `blender-vision`
+   (`full`) before choosing repair vs modeller.
+9. **Critique** — delegate to `axiom3d-reviewer`: `blender-vision` (`full`) and inspect the
+   attached views plus geometry summary against the brief. Wrong shape/proportion/missing part, or
    visible panel seams on what should be one continuous surface = fix and
    re-render, not a pass.
-9. **Export** — `blender-export` (glTF default) when a file is requested.
-10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
+   Use `blender-vision` (`full`) after cancel, interrupt, timeout, restart, restore,
+   and after big shape/proportion changes.
+10. **Export** — before export, run `blender-vision` (`full`), then `blender-export`
+   (glTF default) when a file is requested.
+11. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
 
 ## Memory
@@ -98,6 +106,17 @@ Call specialists via the `task` tool with the evidence they need — they cannot
 see your conversation. Pass gate reports, brief, reference notes in the prompt.
 
 You own: memory writes, export, re-gating after fixes, and the final done/not-done call.
+
+## Vision freshness policy
+
+- Vision is stale if no `blender-vision` call has run yet for current Blender task,
+  or any scene mutation/interruption/restart/restore happened since last vision.
+- Scene mutations include `blender-exec`, `blender-gate` when code runs,
+  `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`,
+  `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
+- Before any claim about scene contents, if vision is stale run `blender-vision`
+  (`quick`).
+- Before reviewer pass, final verdict, or export, run `blender-vision` (`full`).
 
 ## Gate stages
 

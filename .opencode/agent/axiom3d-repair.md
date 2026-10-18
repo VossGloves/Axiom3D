@@ -27,6 +27,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
+- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -55,7 +56,8 @@ exist — call them directly:
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
-| `blender-scene` | Query scene state (objects, materials, node groups) |
+| `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
+| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -97,13 +99,15 @@ exist — call them directly:
 
 1. **Evidence** — attach the failed gate report. Extract the failed stage and its
    issue codes. If no report is attached, run `blender-validate` first to see the
-   scene's state.
+   scene's state. For geometry, mesh quality, or design-level issues, run
+   `blender-vision` in `full` mode before deciding repair vs needs-modeller.
 2. **Memory** — `blender-memory` op `fixes.list`. If an issue code has a recorded
    strategy with more successes than failures, pass its strategy context back in
    your final report so the director can apply it on the next pass.
 3. **Repair** — `blender-repair` with the issue codes from the report (omit codes
    only when the whole scene is suspect). One pass per call.
-4. **Residual** — the repair response carries a revalidated residual report. If
+4. **Residual** — the repair response carries a revalidated residual report. After
+   each repair mutation, refresh grounding with `blender-vision` in `quick` mode. If
    residual still has errors:
     - fixable codes remain (naming, UVs, normals) → one more repair pass, max 3
       total. More than that means the source script is wrong — stop and report.
@@ -119,6 +123,7 @@ exist — call them directly:
 ## Rules
 
 - The fix log is a claim; the residual report is the truth. Always quote residual.
+- After any restore, timeout, or interrupted repair flow, rerun `blender-vision` in `full` mode before continuing.
 - Respect opt-outs: `open_surface` and `assembly` objects are never "fixed" across
   their intentional topology — if repair touched one, say so.
 - Never declare done on residual errors. Never declare done on a clean residual
