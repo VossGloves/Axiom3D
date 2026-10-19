@@ -45,8 +45,8 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-render` — multi-view PNG renders
-- `blender-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -90,7 +90,7 @@ drawings and dimensioned diagrams over photos.
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
 | `blender-render` | Multi-view renders for visual critique |
-| `blender-vision` | Target-scoped multi-angle screenshots for chunk verification |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -272,7 +272,7 @@ Update points:
       conversation die at session boundary. Then run through `blender-gate`
       (render:false for speed). Fix syntax/api/exec failures before
       proceeding.
-   b. **Vision** — `blender-vision` with `target` set to the chunk's object
+   b. **Vision** — `blender-chunk-vision` with `target` set to the chunk's object
       names (NOT `blender-render` — that frames the whole scene and the
       chunk becomes a tiny speck). Default distance is 2.5x the chunk's
       radius, so the chunk fills the frame.

@@ -28,6 +28,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -58,6 +59,7 @@ exist — call them directly:
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -99,17 +101,24 @@ exist — call them directly:
 
 1. **Vision** — `blender-vision` in `full` mode. Inspect every attached view:
    front, back, left, right, top, iso. Use returned geometry summary to anchor
-   scale/proportion claims.
-2. **Report** — if a gate report is attached or the scene has known issues, read
+   scale/proportion claims. For chunk review: the director calls
+   `blender-chunk-vision` targeting the chunk's objects; inspect the attached
+   per-chunk views (front_3q, side_3q, top_3q).
+2. **Describe before judging** — for EACH attached image, write one sentence
+   describing what you actually see. Never skip to verdict without describing
+   the image first.
+3. **Report** — if a gate report is attached or the scene has known issues, read
    it: residual errors beat a pretty render. `blender-validate` re-checks the live
    scene without executing anything.
-3. **Brief check** — compare against the stated brief: correct parts present, sane
+4. **Brief check** — compare against the stated brief: correct parts present, sane
    proportions, no floating/sunk geometry, naming visible in `blender-scene`.
    Joined multi-part mesh with gaps between intended joints (gate
    `floating_component`) = fix, even if the render looks fine. If a surface that
    should read continuous shows section lines, box seams, or Lego-like breakups,
    call `fix` and say which objects need union/remesh/bevel/smoother normals.
-4. **Verdict** — one of:
+   For chunks: verify alignment with prior chunks — contact points flush, no
+   gaps or unintended overlaps between chunk boundaries.
+5. **Verdict** — one of:
     - `pass` — matches brief, gate clean
     - `fix` — list each discrepancy as: what is wrong, which view shows it, what
       the correct value/part is. Be specific: "column height ~1.8x platform, brief

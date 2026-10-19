@@ -38,6 +38,20 @@ specialist work yourself when a specialist exists.**
    data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
    before planning: confirm node names, socket names, pull a tested pattern
    snippet. Never guess API details; the gate rejects unknown symbols.
+   The planner outputs a chunk plan: ordered list of `{id, description, approx_dims, position}`.
+4b. **Chunked build** — iterate the chunk plan. Per chunk:
+   a. **Folder** — BEFORE modeller, `mkdir -p .axiom3d/scripts/<asset_name>` and tell user.
+   b. **Build** — delegate chunk brief + scene summary + prior chunk bounds to
+      `axiom3d-modeller`. Write returned script to
+      `.axiom3d/scripts/<asset_name>/<chunk_id>.py`. Run through `blender-gate`
+      (render:false for speed).
+   c. **Vision** — `blender-chunk-vision` targeting the chunk's object names
+      (NOT `blender-render` — that frames the whole scene). Captures ~3
+      screenshots from different angles around the chunk.
+   d. **Analyse** — describe what you see in each screenshot. Check proportions,
+      alignment with prior chunks, match to brief. If problems, read saved
+      script from disk, delegate refine to modeller (max 3 attempts).
+   e. **Advance** — only after vision passes does the next chunk begin.
 5. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
    (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
    `blender-assembly` for multi-part assets. When forms should read as one skin,
@@ -161,6 +175,7 @@ Issue vocabulary (fix all errors):
 - `blender-material` — list/apply PBR library materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted)
 - `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
 - `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
 
 ## Blender 5.2 gotchas (verified, these drift across versions)
 

@@ -28,6 +28,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -57,6 +58,7 @@ exist — call them directly:
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
