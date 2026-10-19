@@ -48,6 +48,8 @@ def handler_wait(cmd, params):
         return min(max(float(params.get("timeout", 300)), 30), 1200) + 60
     if cmd == "render":
         return 300.0
+    if cmd == "vision":
+        return 300.0
     return 120.0
 
 

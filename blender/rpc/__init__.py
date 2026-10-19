@@ -1,7 +1,8 @@
 """RPC command registry. Handlers never touch sockets; worker.py owns the transport
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
-the pump), exec, snapshot, restore, reset, query, render, export, validate, gate,
-docs, repair, materials, primitives, curves, booleans, assemblies, damage, modify."""
+the pump), exec, snapshot, restore, reset, query, render, vision, export, validate,
+gate, docs, repair, materials, primitives, curves, booleans, assemblies, damage,
+modify."""
 
 from rpc.base import ExecScriptError, WorkerError, require_live
 from rpc import (
@@ -19,6 +20,7 @@ from rpc import (
     repair,
     session,
     validate,
+    vision,
 )
 
 COMMANDS = {
@@ -29,6 +31,7 @@ COMMANDS = {
     "reset": session.cmd_reset,
     "query": session.cmd_query,
     "render": render.cmd_render,
+    "vision": vision.cmd_vision,
     "export": export.cmd_export,
     "validate": validate.cmd_validate,
     "gate": gate.cmd_gate,

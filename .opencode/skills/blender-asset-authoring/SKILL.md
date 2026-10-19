@@ -32,22 +32,39 @@ specialist work yourself when a specialist exists.**
    joint details, silhouette. Never invent geometry from imagination when a
    reference exists.
 3. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
-   data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
-   before planning: confirm node names, socket names, pull a tested pattern
-   snippet. Never guess API details; the gate rejects unknown symbols.
-4. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
-   (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
-   `blender-assembly` for multi-part assets. Set transforms; author each asset's
-   specific proportions and part counts in code.
+   data attached (unless trivial re-run of a saved preset). The planner outputs
+   a chunk plan: ordered list of `{id, description, approx_dims, position}`.
+   Retrieve `blender-docs` before planning: confirm node names, socket names,
+   pull a tested pattern snippet. Never guess API details; the gate rejects
+   unknown symbols.
+4. **Chunked build** — iterate the chunk plan. Per chunk:
+   a. **Build** — BEFORE delegating to the modeller, create the script folder:
+      `mkdir -p .axiom3d/scripts/<asset_name>` and tell the user it exists.
+      Then delegate chunk brief + scene summary + prior chunk bounds to the
+      modeller. When the modeller returns the script, write it to
+      `.axiom3d/scripts/<asset_name>/<chunk_id>.py` and confirm the path.
+      Compose from `blender-primitive` (base shapes), `blender-curve`
+      (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
+      `blender-assembly` for multi-part assets. Set transforms; author each
+      chunk's specific proportions and part counts in code. Place relative to
+      prior chunk bounds using half-extent math. Run through `blender-gate`
+      (render:false for speed) to catch syntax/geometry errors.
+   b. **Vision** — `blender-vision` targeting the chunk's object names. Captures
+      ~3 screenshots from different angles around the chunk.
+   c. **Analyse** — review screenshots: proportions correct? positioned right
+      relative to prior chunks? geometry matches brief? If problems, read the
+      saved script from disk and delegate refine to `axiom3d-modeller` with
+      critique (max 3 attempts per chunk).
+   d. **Advance** — only after vision passes does the next chunk begin.
 5. **Detail pass** — after basic shape passes gate, add visual density:
    `blender-modify` for bevel/remesh/deform/instance; `ops.bevel_all_boxes()` or
    `ops.add_bevel(obj)` for soft edges (width 0.005m, angle-limited);
    `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
    for industrial fasteners; `blender-damage` for weathering/wear when the brief
    calls for aged/distressed surfaces.
-6. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
-   stage and re-run until `passed`. Route failures per the routing table below.
-   `blender-validate` re-checks without executing; `blender-exec` is for
+6. **Verify** — after all chunks: full `blender-gate` (render:true). Fix every
+   failed stage and re-run until `passed`. Route failures per the routing table
+   below. `blender-validate` re-checks without executing; `blender-exec` is for
    scratch/read-only scripts. Pass `asset: <name>` on every gate call to
    record the result into memory.
 7. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
@@ -71,6 +88,17 @@ the current brief and reference. Prior params may inform unit scale only. After
 success: `presets.save` the param set. `fixes.list` shows which repair
 strategies historically worked.
 
+## Build Progress
+
+Write progress to `.axiom3d/progress.json` at every step transition so the TUI
+shows a live banner above the chat input:
+
+```bash
+echo '{"asset":"name","step":"Building canopy","step_index":3,"step_total":6,"chunk":"canopy","status":"vision check"}' > .axiom3d/progress.json
+```
+
+Clear when done: `echo '{}' > .axiom3d/progress.json`
+
 ## Routing (axiom3d director)
 
 **You ARE the `axiom3d` director. Delegate by failure class and task via the
@@ -80,12 +108,13 @@ strategies historically worked.
 |---|---|
 | New asset gap analysis → JSON question list | `axiom3d-brief` (`MODE: interview`) |
 | Picker answers collected → structured brief | `axiom3d-brief` (`MODE: brief` + answers) |
-| Brief ready → plan needed (composition, params) | `axiom3d-planner` |
+| Brief ready → plan needed (composition, params, chunks) | `axiom3d-planner` |
 
 Interview UI: the `question` tool (clickable picker, "Type your own answer"
 built in). Map brief JSON to tool params 1:1; drop `id`; never add catch-all
 options or dump options as markdown.
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
+| Chunk failed vision check (proportions, positioning, design) | `axiom3d-modeller` (rewrite that chunk) |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
 | Final shape/proportion/brief check before done | `axiom3d-reviewer` |
@@ -138,6 +167,7 @@ Issue vocabulary (fix all errors):
 - `blender-material` — list/apply PBR library materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted)
 - `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
 - `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
+- `blender-vision` — target-scoped multi-angle screenshots for chunk verification
 
 ## Blender 5.2 gotchas (verified, these drift across versions)
 
