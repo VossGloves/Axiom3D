@@ -28,6 +28,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
+- `blender-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -56,6 +57,7 @@ exist — call them directly:
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |
+| `blender-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -122,7 +124,11 @@ when no library entry fits.
 
 1. **Input** — build plan (from the planner, with reference notes) or gate report
    evidence (failed stage + issues). If neither is attached, ask the director for one;
-   do not invent an asset.
+   do not invent an asset. For chunked builds, the director passes: current chunk
+   brief, scene summary (prior chunk names + bounds), and optionally a vision
+   critique from the last attempt. If a saved script exists at
+   `.axiom3d/scripts/<asset_name>/<chunk_id>.py`, the director will have read it
+   and attached its content — refine from that, do not rewrite from scratch.
 2. **Reference** — read the plan's reference notes: proportions, dimensions, part
    relationships. Match these exactly; do not invent dimensions.
 3. **API truth** — `blender-docs` before writing anything you are not sure about:
@@ -134,6 +140,8 @@ when no library entry fits.
 4. **Compose** — build from primitives, curves, and booleans. Write the specific
    proportions and part counts from the plan into the script. Use `blender-modify`
    / `ops` helpers for bevel/remesh/deform/instance passes when the plan calls for them.
+   For chunks: place new geometry relative to prior chunk bounds using half-extent
+   math. Never freehand offsets — compute contact points from existing geometry.
 5. **Bevel** — after base geometry is correct, apply bevel to hard-surface objects:
    `ops.add_bevel(obj, width=0.005, segments=2)` or `ops.bevel_all_boxes()` for
    quick pass. Scale width to asset size (0.005m furniture, 0.02m building).
@@ -143,9 +151,14 @@ when no library entry fits.
    the asset domain (bolts for machinery, panels for vehicles).
 7. **Emit** — one code block, complete and runnable: imports included, names
    snake_case, transforms applied, UV layer present, grounded at Z=0.
+   Return the script inline only — the director persists it to
+   `.axiom3d/scripts/<asset_name>/<chunk_id>.py` after receiving it.
 8. **Script-stage failures** — on syntax/api/exec errors, fix exactly the reported
    line/chain. On `ExecScriptError`, read the traceback; do not rewrite the whole
    script for one bug.
+9. **Vision refinement** — when a vision critique is attached, address each cited
+   view's issue precisely. Recompute bounds if proportions were wrong; reposition
+   if alignment failed. Re-emit the corrected chunk only.
 
 ## Rules
 

@@ -10,6 +10,7 @@ import blenderScene from "../../.opencode/tools/blender-scene"
 import blenderCheckpoint from "../../.opencode/tools/blender-checkpoint"
 import blenderValidate from "../../.opencode/tools/blender-validate"
 import blenderRender from "../../.opencode/tools/blender-render"
+import blenderVision from "../../.opencode/tools/blender-vision"
 import blenderExport from "../../.opencode/tools/blender-export"
 import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderDocs from "../../.opencode/tools/blender-docs"
@@ -36,6 +37,7 @@ const tools = {
   checkpoint: blenderCheckpoint,
   validate: blenderValidate,
   render: blenderRender,
+  vision: blenderVision,
   export: blenderExport,
   gate: blenderGate,
   docs: blenderDocs,
@@ -53,7 +55,7 @@ afterAll(() => {
 })
 
 describe("tool shape", () => {
-  test("ten tools, each with description, args, execute", () => {
+  test("eleven tools, each with description, args, execute", () => {
     for (const [name, definition] of Object.entries(tools)) {
       expect(typeof definition.description, name).toBe("string")
       expect(definition.description.length, name).toBeGreaterThan(40)
@@ -121,6 +123,25 @@ print("made crate")`,
     expect(result.attachments[0].url.startsWith("data:image/png;base64,")).toBe(true)
     expect(result.output).toContain(".png")
   }, 240_000)
+
+  test("vision captures target-scoped views with data-URL PNGs", async () => {
+    const result = (await tools.vision.execute(
+      { target: "crate_tool", engine: "workbench", width: 320, height: 180 },
+      context,
+    )) as { title: string; output: string; attachments: Array<{ mime: string; url: string }> }
+    expect(result.attachments.length).toBe(3)
+    expect(result.attachments[0].mime).toBe("image/png")
+    expect(result.attachments[0].url.startsWith("data:image/png;base64,")).toBe(true)
+    expect(result.output).toContain("crate_tool")
+    expect(result.output).toContain("front_3q")
+    expect(result.output).toContain("bounds")
+  }, 240_000)
+
+  test("vision errors on missing target", async () => {
+    const output = (await tools.vision.execute({ target: "nonexistent_object" }, context)) as string
+    expect(output).toContain("ERROR:")
+    expect(output).toContain("TargetNotFound")
+  }, 30_000)
 
   test("export resolves relative path against project", async () => {
     const output = (await tools.export.execute(

@@ -7,8 +7,8 @@ permission:
   glob: allow
   grep: allow
   edit: deny
-  write: deny
-  bash: deny
+  write: allow
+  bash: allow
   webfetch: allow
   websearch: allow
   question: allow
@@ -45,6 +45,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-render` — multi-view PNG renders
+- `blender-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -87,6 +88,7 @@ drawings and dimensioned diagrams over photos.
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, materials, node groups) |
 | `blender-render` | Multi-view renders for visual critique |
+| `blender-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -152,8 +154,9 @@ specialist exists:
 |---|---|
 | New asset request → gap analysis, JSON question list | `axiom3d-brief` (`MODE: interview` + raw prompt) |
 | Interview answers collected → structured art brief | `axiom3d-brief` (`MODE: brief` + prompt + `## User answers`) |
-| Brief ready → plan needed (composition, params) | `axiom3d-planner` |
+| Brief ready → plan needed (composition, params, chunks) | `axiom3d-planner` |
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
+| Chunk failed vision check (proportions, positioning, design) | `axiom3d-modeller` (rewrite that chunk) |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
 | Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
 | Final shape/proportion/brief check before done | `axiom3d-reviewer` |
@@ -171,6 +174,38 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 - After a plan exists: `assets.save` with the brief + composition notes.
 - Every `blender-gate` call: pass `asset: <name>` to record the result.
 - After success: `presets.save` the param set under a reusable name.
+
+## Script Persistence
+
+Chunk build scripts are saved to `.axiom3d/scripts/<asset_name>/<chunk_id>.py`.
+On ANY resume or refine:
+
+1. Check `.axiom3d/scripts/<asset_name>/` for existing chunk scripts before
+   asking the modeller to write from scratch.
+2. Read saved scripts with the `read` tool — they are the source of truth for
+   what was already built.
+3. Pass the saved script content to the modeller when refining that chunk.
+4. New chunks (not yet in the folder) are written fresh by the modeller.
+
+## Build Progress UI
+
+Write progress to `.axiom3d/progress.json` so the TUI shows a live banner above
+the chat input. Update this file at every step transition:
+
+```bash
+echo '{"asset":"train_station","step":"Building canopy","step_index":3,"step_total":6,"chunk":"canopy","status":"vision check","detail":"3 screenshots captured"}' > .axiom3d/progress.json
+```
+
+Update points:
+- After plan accepted: set step_index=1, step_total=<n_chunks>, step="Starting build"
+- Before each chunk build: set step, chunk, status="building"
+- After gate passes: status="gate passed"
+- During vision: status="capturing screenshots"
+- During analysis: status="analysing"
+- If refining: status="refining", detail=<what's wrong>
+- When chunk done: status="chunk complete"
+- On final verify: step="Final verification"
+- On done: echo '{}' > .axiom3d/progress.json (clears banner)
 
 ## Loop
 
@@ -222,13 +257,35 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
    relationships, dimensions; attach to the planner.
 3. **Inspect** — `blender-scene` before any assumption about current scene state.
 4. **Plan** — delegate to `axiom3d-planner` with the brief (and reference data)
-   attached unless the brief is a trivial re-run of a saved preset.
-5. **Execute & verify** — run scripts through `blender-gate` (with `asset` set).
-   Fix every failed stage, re-run until `passed`. Route failures per the table.
-   `blender-exec` is for scratch/read-only; `blender-validate` re-checks the
-   current scene without executing.
-6. **Critique** — delegate to `axiom3d-reviewer`. Wrong shape/proportion/missing
-   part = fix and re-render, not a pass.
+   attached unless the brief is a trivial re-run of a saved preset. The planner
+   outputs a chunk plan: ordered list of `{id, description, approx_dims, position}`.
+5. **Chunked build** — iterate the chunk plan. Per chunk:
+   a. **Build** — BEFORE delegating to the modeller, create the script folder:
+      `mkdir -p .axiom3d/scripts/<asset_name>` and tell the user it exists.
+      Then delegate chunk brief + scene summary + prior chunk bounds to
+      `axiom3d-modeller`. When the modeller returns the script, write it to
+      `.axiom3d/scripts/<asset_name>/<chunk_id>.py` and confirm: "Saved:
+      .axiom3d/scripts/<asset>/<chunk>.py". Scripts that live only in
+      conversation die at session boundary. Then run through `blender-gate`
+      (render:false for speed). Fix syntax/api/exec failures before
+      proceeding.
+   b. **Vision** — `blender-vision` with `target` set to the chunk's object
+      names (NOT `blender-render` — that frames the whole scene and the
+      chunk becomes a tiny speck). Default distance is 2.5x the chunk's
+      radius, so the chunk fills the frame.
+   c. **Analyse** — DO NOT skip this. For each attached screenshot:
+      - Describe what you actually see in the image (shape, proportions,
+        position relative to other objects)
+      - Compare to the brief: is this what was asked for?
+      - Check against prior chunks: does it align? right height? right length?
+      - List specific problems with the view name as evidence
+      If anything is wrong, read the saved script from disk, delegate to
+      `axiom3d-modeller` with the critique (max 3 attempts per chunk).
+      "Looks roughly correct" is NOT acceptable — find specific issues.
+   d. **Advance** — only after vision passes does the next chunk begin.
+6. **Final verify** — after all chunks: full `blender-gate` (render:true) +
+   delegate to `axiom3d-reviewer`. Wrong shape/proportion/missing part = fix
+   and re-render, not a pass.
 7. **Export** — `blender-export` when a file is requested.
 
 ## Rules

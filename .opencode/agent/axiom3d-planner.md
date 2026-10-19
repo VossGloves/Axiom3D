@@ -133,6 +133,10 @@ library entry fits.
 4. **Plan** — output, in this order:
     - asset name (snake_case, `<type>_<domain>_<detail>`)
     - reference notes: proportions, dimensions, part relationships from reference
+    - chunk plan: ordered list of `{id, description, approx_dims, position}`.
+      Each chunk is one logical part group (base, main body, appendages, details).
+      Typical split: 3-6 chunks per asset. Position describes placement relative
+      to prior chunks or world origin.
     - composition steps: primitives/curves/booleans order, expected object names
     - technique notes: which corpus patterns to adapt (boolean opening for doors,
       curve sweep for pipes, radial array for circular layouts)
