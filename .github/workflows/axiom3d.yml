@@ -56,7 +56,7 @@ jobs:
           tar -xJf /tmp/blender.tar.xz -C "$GITHUB_WORKSPACE/.blender" --strip-components=1
           rm /tmp/blender.tar.xz
 
-      - name: Install trimesh into Blender's bundled Python
+      - name: Install Blender Python deps
         run: |
           set -euo pipefail
           PY=$(find "$GITHUB_WORKSPACE/.blender/5.2/python/bin" -maxdepth 1 -name 'python3*' -type f | head -n1)

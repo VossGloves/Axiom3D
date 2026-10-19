@@ -1,75 +1,61 @@
+import { basename } from "node:path"
 import { tool } from "@opencode-ai/plugin"
 import { request } from "../lib/blender-client"
 
-type VisionResult = {
+const MODES = ["quick", "full"] as const
+
+type RenderResult = {
   files: string[]
-  cameras: Array<{ name: string; path: string; location: number[] }>
+  views?: Array<{ view: string; file: string }>
   engine_used: string
-  target: string[]
-  target_bounds: { center: number[]; radius: number }
 }
 
 export default tool({
   description:
-    "Capture screenshots of a target object from ~3 angles for visual inspection. Frames cameras around the target's bounds, not the whole scene. Use after building a chunk to verify proportions, positioning, and design before moving on.",
+    "Ground the AI in the live Blender scene. Quick mode returns structured geometry/text only; full mode adds multi-view PNG attachments for visual critique.",
   args: {
-    target: tool.schema
-      .string()
-      .describe("Object name (or comma-separated names) to frame cameras around"),
-    engine: tool.schema.string().default("workbench").describe("workbench | eevee | cycles"),
+    mode: tool.schema.enum(MODES).default("quick").describe("quick | full"),
+    views: tool.schema
+      .array(tool.schema.string())
+      .optional()
+      .describe("Subset of front, back, left, right, top, iso for full mode; default all six"),
     width: tool.schema.number().default(640),
     height: tool.schema.number().default(360),
-    distance: tool.schema
-      .number()
-      .default(2.5)
-      .describe("Camera distance as multiple of target radius"),
-    views: tool.schema
-      .array(
-        tool.schema.object({
-          name: tool.schema.string(),
-          azimuth: tool.schema.number(),
-          elevation: tool.schema.number(),
-        }),
-      )
-      .optional()
-      .describe("Custom views: [{name, azimuth, elevation}]. Default: 3 three-quarter angles"),
   },
   async execute(args) {
     try {
-      const target = args.target
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-      const result = await request<VisionResult>(
-        "vision",
-        {
-          target,
-          engine: args.engine,
-          width: args.width,
-          height: args.height,
-          distance: args.distance,
-          views: args.views,
-        },
-        310_000,
-      )
-      const attachments = await Promise.all(
-        result.files.map(async (file) => ({
-          type: "file" as const,
-          mime: "image/png",
-          url: `data:image/png;base64,${Buffer.from(await Bun.file(file).arrayBuffer()).toString("base64")}`,
-        })),
-      )
-      const viewLabels = result.cameras.map((c) => `${c.name} (at ${c.location.map((v) => v.toFixed(2)).join(", ")})`).join("\n")
+      const geometry = await request<Record<string, unknown>>("query", { kind: "geometry" }, 120_000)
+      const payload: Record<string, unknown> = { mode: args.mode, geometry }
+      if (args.mode === "full") {
+        try {
+          const render = await request<RenderResult>(
+            "render",
+            { engine: "workbench", width: args.width, height: args.height, views: args.views },
+            310_000,
+          )
+          const attachments = await Promise.all(
+            render.files.map(async (file) => ({
+              type: "file" as const,
+              mime: "image/png",
+              url: `data:image/png;base64,${Buffer.from(await Bun.file(file).arrayBuffer()).toString("base64")}`,
+            })),
+          )
+          payload.render = {
+            engine: render.engine_used,
+            views: render.views ?? render.files.map((file) => ({ view: basename(file, ".png"), file })),
+          }
+          return {
+            title: "Blender vision (full)",
+            output: JSON.stringify(payload, null, 2),
+            attachments,
+          }
+        } catch (error) {
+          payload.render_error = error instanceof Error ? error.message : String(error)
+        }
+      }
       return {
-        title: `Vision: ${result.target.join(", ")} — ${result.files.length} views (${result.engine_used})`,
-        output: [
-          `target: ${result.target.join(", ")}`,
-          `bounds: center=(${result.target_bounds.center.join(", ")}) radius=${result.target_bounds.radius}`,
-          `engine: ${result.engine_used}`,
-          `views:\n${viewLabels}`,
-          "Attached images show the target from different angles. Analyse: are proportions correct? Is it positioned right relative to prior chunks? Does geometry match the brief? Cite the view name when reporting issues.",
-        ].join("\n"),
-        attachments,
+        title: `Blender vision (${args.mode})`,
+        output: JSON.stringify(payload, null, 2),
       }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`

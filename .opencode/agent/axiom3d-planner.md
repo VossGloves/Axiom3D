@@ -81,6 +81,7 @@ exist — call them directly:
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
+| `scipy` | Optimization, interpolation, smoothing, KD-tree search (vendored, import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 
 ### Ops module (available in modeller's exec)
@@ -141,6 +142,8 @@ library entry fits.
     - technique notes: which corpus patterns to adapt (boolean opening for doors,
       curve sweep for pipes, radial array for circular layouts)
     - bevel plan: which objects get bevel, width proportional to asset size
+    - seam plan: where sections must stay explicit vs where geometry should fuse
+      into one continuous surface with boolean/remesh + smooth normals
     - detail pass: which surfaces get scattered details, what type (bolts, brackets,
       seams) fits the asset domain
     - expected gate path: which stages should pass first try, which need care
@@ -160,6 +163,8 @@ library entry fits.
 - Corpus patterns are references to adapt, not templates to instantiate. Plan the
   technique and parameters, let the modeller write the code.
 - Bevel improves visual quality on hard-surface assets; plan it as a final pass
+- If silhouette should read as one shell, plan boolean union or remesh instead of
+  stacked coplanar boxes; visible Lego seams are a modeling failure, not style.
   after base geometry passes gate.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact

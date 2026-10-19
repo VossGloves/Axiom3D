@@ -9,6 +9,20 @@ so only hard edges are rounded.
 import bpy
 
 
+def smooth_by_angle(obj, angle=0.7854):
+    """Smooth shading with sharp edges preserved above angle radians.
+
+    This keeps box edges crisp while removing faceted shading and seam lines on
+    curved or coplanar joined sections.
+    """
+    if obj.type != "MESH":
+        return obj
+    obj.data.shade_smooth()
+    obj.data.set_sharp_from_angle(angle=angle)
+    obj.data.update()
+    return obj
+
+
 def add_bevel(obj, width=0.005, segments=2, angle_limit=0.7854, affect="EDGES"):
     """Bevel modifier — softens hard edges. Angle limit (radians) filters which
     edges get beveled; 0.7854 rad (45°) bevels only hard corners, not smooth curves.
@@ -87,6 +101,7 @@ def apply_all_modifiers(obj):
     obj.data = baked
     if old.users == 0:
         bpy.data.meshes.remove(old)
+    smooth_by_angle(obj)
     return obj
 
 

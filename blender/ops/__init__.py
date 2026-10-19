@@ -15,6 +15,7 @@ from ops.modifiers import (
     add_subsurf,
     apply_all_modifiers,
     bevel_all_boxes,
+    smooth_by_angle,
 )
 from ops.deform import (
     add_deform,
@@ -37,6 +38,7 @@ __all__ = [
     "add_subsurf",
     "apply_all_modifiers",
     "bevel_all_boxes",
+    "smooth_by_angle",
     "add_deform",
     "add_displace",
     "add_remesh",

@@ -8,6 +8,7 @@ import bpy
 
 from materials import get_material
 from rpc.base import WorkerError, call_op
+from ops.modifiers import smooth_by_angle
 
 
 def _ground_and_uv(obj):
@@ -35,6 +36,7 @@ def _ground_and_uv(obj):
                     co = obj.data.vertices[obj.data.loops[li].vertex_index].co
                     uv.data[li].uv = (co[(axis + 1) % 3], co[(axis + 2) % 3])
             obj.data.update()
+        smooth_by_angle(obj)
 
 
 def _finish(obj, name, material):
