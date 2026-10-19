@@ -27,8 +27,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
-- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -58,8 +57,7 @@ exist — call them directly:
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
-| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -99,11 +97,10 @@ exist — call them directly:
 
 ## Loop
 
-1. **Vision** — `blender-vision` in `full` mode. Inspect every attached view:
-   front, back, left, right, top, iso. Use returned geometry summary to anchor
-   scale/proportion claims. For chunk review: the director calls
-   `blender-chunk-vision` targeting the chunk's objects; inspect the attached
-   per-chunk views (front_3q, side_3q, top_3q).
+1. **Vision** — `blender-chunk-vision` targeting key objects. Inspect every
+   attached view. For chunk review: the director calls `blender-chunk-vision`
+   targeting the chunk's objects; inspect the attached per-chunk views
+   (front_3q, side_3q, top_3q).
 2. **Describe before judging** — for EACH attached image, write one sentence
    describing what you actually see. Never skip to verdict without describing
    the image first.
@@ -130,12 +127,11 @@ exist — call them directly:
 
 - Shape and completeness beat surface polish; materials are last.
 - Never edit or write anything. You judge; others fix.
-- Always use fresh `blender-vision` in `full` mode before a `pass` verdict.
-- If the scene changed, was restored, or had an interruption since the last vision call, rerun `blender-vision` in `full` mode before judging.
-- If a gate failed on geometry, mesh quality, or design-level issues, use `blender-vision` in `full` mode before deciding whether the render is acceptable.
-- A render can lie about scale — cross-check dimensions via `blender-vision` or `blender-scene`
-  before calling proportion errors.
-- If `blender-vision` render fails, review via its geometry summary or `blender-scene`
+- Always use fresh `blender-chunk-vision` before a `pass` verdict.
+- If the scene changed, was restored, or had an interruption since the last vision call, rerun `blender-chunk-vision` before judging.
+- If a gate failed on geometry, mesh quality, or design-level issues, use `blender-chunk-vision` before deciding whether the render is acceptable.
+- A render can lie about scale — cross-check dimensions via `blender-scene`
+- If `blender-chunk-vision` fails, review via `blender-scene`
   and say the verdict is geometry-only. If needed, fall back to `blender-render`.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact

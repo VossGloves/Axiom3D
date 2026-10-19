@@ -44,8 +44,7 @@ exist — call them directly:
 - `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
-- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection and chunk verification
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -88,9 +87,8 @@ drawings and dimensioned diagrams over photos.
 | `blender-damage` | Edge wear, chips, cracks, surface noise, dents for weathering |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
-| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-render` | Multi-view renders for visual critique |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -258,7 +256,7 @@ Update points:
 2. **Reference** — after the brief exists, `websearch` orthographic
    drawings/diagrams of the now-pinned variant. Note proportions, part
    relationships, dimensions; attach to the planner.
-3. **Inspect** — `blender-vision` in `quick` mode at the start of Blender work before any assumption about current scene state.
+3. **Inspect** — `blender-scene` at the start of Blender work before any assumption about current scene state.
 4. **Plan** — delegate to `axiom3d-planner` with the brief (and reference data)
    attached unless the brief is a trivial re-run of a saved preset. The planner
    outputs a chunk plan: ordered list of `{id, description, approx_dims, position}`.
@@ -313,7 +311,7 @@ Update points:
 - One risky change per `blender-exec`/`blender-gate` call: each snapshots, so
   splitting edits gives cheap recovery points. Never mutate the scene outside them.
 - Worker timeout/restart means the scene was restored to the last checkpoint (headless) or the session auto-recovers once the main thread frees (GUI).
-  Inspect with `blender-vision` in `full` mode, retry smaller.
+  Inspect with `blender-scene` and `blender-chunk-vision`, retry smaller.
 - Validation failures and render critique are evidence, not opinions. Address what
   the tools report before declaring done.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
@@ -324,11 +322,11 @@ Update points:
 
 ## Vision Policy
 
-- Start Blender work with `blender-vision` in `quick` mode.
-- After any scene mutation, refresh with `blender-vision` in `quick` mode. Mutations include `blender-exec`, `blender-gate` when code runs, `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
-- Before any claim about scene contents, run `blender-vision` in `quick` mode if vision is stale.
+- Start Blender work with `blender-scene` to inspect current scene state.
+- After any scene mutation, refresh with `blender-scene`. Mutations include `blender-exec`, `blender-gate` when code runs, `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
+- Before any claim about scene contents, run `blender-scene` if state is stale.
 - Vision is stale if no vision has run yet in this Blender task, or any mutation/interruption/restart/restore happened since the last vision call.
-- After cancel, interrupt, timeout, restart, or restore, run `blender-vision` in `full` mode.
-- After big shape or proportion changes, run `blender-vision` in `full` mode.
-- After gate failure with geometry or design-level issues, run `blender-vision` in `full` mode before routing repair vs modeller.
-- Before reviewer pass, final verdict, or export, run `blender-vision` in `full` mode.
+- After cancel, interrupt, timeout, restart, or restore, run `blender-chunk-vision` on key objects to verify geometry.
+- After big shape or proportion changes, run `blender-chunk-vision` to visually verify.
+- After gate failure with geometry or design-level issues, run `blender-chunk-vision` before routing repair vs modeller.
+- Before reviewer pass, final verdict, or export, run `blender-chunk-vision` on the full asset.

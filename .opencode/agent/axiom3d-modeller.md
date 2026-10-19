@@ -27,8 +27,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
-- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for chunk verification
+- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -57,8 +56,7 @@ exist — call them directly:
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
-| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for chunk verification |
+| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -128,8 +126,8 @@ when no library entry fits.
 1. **Input** — build plan (from the planner, with reference notes) or gate report
    evidence (failed stage + issues). If neither is attached, ask the director for one;
    do not invent an asset.
-   If you need to reason about current scene state, start with `blender-vision` in
-   `quick` mode instead of guessing.
+   If you need to reason about current scene state, start with `blender-scene`
+   `blender-scene` instead of guessing.
 2. **Reference** — read the plan's reference notes: proportions, dimensions, part
    relationships. Match these exactly; do not invent dimensions.
 3. **API truth** — `blender-docs` before writing anything you are not sure about:
@@ -183,7 +181,7 @@ when no library entry fits.
 - Scene-stage failures (geometry/mesh_quality) are NOT yours unless the director
   says the design must change — repair fixes those, you rewrite only on its report.
 - If the attached evidence says the scene was interrupted, restored, or changed in a
-  big way, use `blender-vision` in `full` mode before proposing a design rewrite.
+  big way, use `blender-chunk-vision` to visually verify before proposing a design rewrite.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact
   error. Do not guess from file creation times.

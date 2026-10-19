@@ -31,8 +31,8 @@ specialist work yourself when a specialist exists.**
    drawings/diagrams of the pinned variant. Extract proportions, part counts,
    joint details, silhouette. Never invent geometry from imagination when a
    reference exists.
-3. **Inspect** — start Blender work with `blender-vision` (`quick`). After any
-   scene mutation, refresh with `blender-vision` (`quick`) before making claims
+3. **Inspect** — start Blender work with `blender-scene`. After any
+   scene mutation, refresh with `blender-scene` before making claims
    about current scene contents if the last vision is stale.
 4. **Plan** — delegate brief→plan to `axiom3d-planner` with the brief + reference
    data attached (unless trivial re-run of a saved preset). Retrieve `blender-docs`
@@ -74,15 +74,15 @@ specialist work yourself when a specialist exists.**
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
-   After gate failure with geometry or design-level issues, run `blender-vision`
-   (`full`) before choosing repair vs modeller.
-9. **Critique** — delegate to `axiom3d-reviewer`: `blender-vision` (`full`) and inspect the
+   After gate failure with geometry or design-level issues, run `blender-chunk-vision`
+   before choosing repair vs modeller.
+9. **Critique** — delegate to `axiom3d-reviewer`: `blender-chunk-vision` and inspect the
    attached views plus geometry summary against the brief. Wrong shape/proportion/missing part, or
    visible panel seams on what should be one continuous surface = fix and
    re-render, not a pass.
-   Use `blender-vision` (`full`) after cancel, interrupt, timeout, restart, restore,
+   Use `blender-chunk-vision` after cancel, interrupt, timeout, restart, restore,
    and after big shape/proportion changes.
-10. **Export** — before export, run `blender-vision` (`full`), then `blender-export`
+10. **Export** — before export, run `blender-chunk-vision`, then `blender-export`
    (glTF default) when a file is requested.
 11. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
    attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
@@ -123,14 +123,14 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 
 ## Vision freshness policy
 
-- Vision is stale if no `blender-vision` call has run yet for current Blender task,
+- Vision is stale if no vision has run yet for current Blender task,
   or any scene mutation/interruption/restart/restore happened since last vision.
 - Scene mutations include `blender-exec`, `blender-gate` when code runs,
   `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`,
   `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
-- Before any claim about scene contents, if vision is stale run `blender-vision`
-  (`quick`).
-- Before reviewer pass, final verdict, or export, run `blender-vision` (`full`).
+- Before any claim about scene contents, if state is stale run `blender-scene`
+  (`blender-scene`).
+- Before reviewer pass, final verdict, or export, run `blender-chunk-vision`.
 
 ## Gate stages
 
