@@ -9,6 +9,8 @@ import traceback
 
 import bpy
 
+from geom.checks import DEFAULT_POLY_BUDGET, scene_geometry_snapshot
+
 from rpc.base import (
     SNAP_DIR,
     SNAP_KEEP,
@@ -256,6 +258,9 @@ def cmd_query(params):
                 entry["uv_layers"] = [uv.name for uv in obj.data.uv_layers]
             objects.append(entry)
         return {"objects": objects}
+    if kind == "geometry":
+        poly_budget = int(params.get("poly_budget", DEFAULT_POLY_BUDGET))
+        return scene_geometry_snapshot(poly_budget)
     if kind == "materials":
         return {
             "materials": [

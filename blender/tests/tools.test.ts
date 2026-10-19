@@ -10,13 +10,13 @@ import blenderScene from "../../.opencode/tools/blender-scene"
 import blenderCheckpoint from "../../.opencode/tools/blender-checkpoint"
 import blenderValidate from "../../.opencode/tools/blender-validate"
 import blenderRender from "../../.opencode/tools/blender-render"
-import blenderVision from "../../.opencode/tools/blender-vision"
 import blenderExport from "../../.opencode/tools/blender-export"
 import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderDocs from "../../.opencode/tools/blender-docs"
 import blenderMaterial from "../../.opencode/tools/blender-material"
 import blenderModify from "../../.opencode/tools/blender-modify"
-import { request, status, stop } from "../../.opencode/lib/blender-client"
+import blenderVision from "../../.opencode/tools/blender-vision"
+import { request, restart, stop } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
 
@@ -37,16 +37,16 @@ const tools = {
   checkpoint: blenderCheckpoint,
   validate: blenderValidate,
   render: blenderRender,
-  vision: blenderVision,
   export: blenderExport,
   gate: blenderGate,
   docs: blenderDocs,
   material: blenderMaterial,
   modify: blenderModify,
+  vision: blenderVision,
 }
 
 beforeAll(async () => {
-  await status()
+  await restart()
   await request("reset")
 }, 90_000)
 
@@ -78,6 +78,28 @@ print("made crate")`,
     )) as string
     expect(output).toContain("status: ok")
     expect(output).toContain('"crate_tool"')
+  })
+
+  test("exec imports scipy for optimize and cKDTree", async () => {
+    const output = (await tools.exec.execute(
+      {
+        code: `import numpy as np
+from scipy import optimize
+from scipy.spatial import cKDTree
+
+root = optimize.root_scalar(lambda x: x * x - 2.0, bracket=[1.0, 2.0])
+tree = cKDTree(np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [3.0, 3.0, 3.0]]))
+distance, index = tree.query([0.9, 0.95, 1.1])
+print(f"root={root.root:.6f}")
+print(f"nearest_index={int(index)}")
+print(f"nearest_distance={float(distance):.6f}")`,
+        timeout: 30,
+      },
+      context,
+    )) as string
+    expect(output).toContain("status: ok")
+    expect(output).toContain("root=1.414214")
+    expect(output).toContain("nearest_index=1")
   })
 
   test("scene reports it", async () => {
@@ -124,24 +146,42 @@ print("made crate")`,
     expect(result.output).toContain(".png")
   }, 240_000)
 
-  test("vision captures target-scoped views with data-URL PNGs", async () => {
-    const result = (await tools.vision.execute(
-      { target: "crate_tool", engine: "workbench", width: 320, height: 180 },
-      context,
-    )) as { title: string; output: string; attachments: Array<{ mime: string; url: string }> }
-    expect(result.attachments.length).toBe(3)
-    expect(result.attachments[0].mime).toBe("image/png")
-    expect(result.attachments[0].url.startsWith("data:image/png;base64,")).toBe(true)
-    expect(result.output).toContain("crate_tool")
-    expect(result.output).toContain("front_3q")
-    expect(result.output).toContain("bounds")
-  }, 240_000)
+  test("vision quick returns geometry without attachments", async () => {
+    const result = (await tools.vision.execute({ mode: "quick" }, context)) as {
+      title: string
+      output: string
+      attachments?: Array<{ mime: string; url: string }>
+    }
+    const parsed = JSON.parse(result.output) as {
+      mode: string
+      geometry: { scene: { mesh_count: number; total_tris: number } }
+    }
+    expect(result.title).toBe("Blender vision (quick)")
+    expect(result.attachments).toBeUndefined()
+    expect(parsed.mode).toBe("quick")
+    expect(parsed.geometry.scene.mesh_count).toBeGreaterThanOrEqual(1)
+    expect(parsed.geometry.scene.total_tris).toBeGreaterThan(0)
+  })
 
-  test("vision errors on missing target", async () => {
-    const output = (await tools.vision.execute({ target: "nonexistent_object" }, context)) as string
-    expect(output).toContain("ERROR:")
-    expect(output).toContain("TargetNotFound")
-  }, 30_000)
+  test("vision full attaches PNG views", async () => {
+    const result = (await tools.vision.execute(
+      { mode: "full", views: ["front"] },
+      context,
+    )) as {
+      title: string
+      output: string
+      attachments?: Array<{ mime: string; url: string }>
+    }
+    const parsed = JSON.parse(result.output) as {
+      mode: string
+      render: { views: Array<{ view: string; file: string }> }
+    }
+    expect(result.title).toBe("Blender vision (full)")
+    expect(result.attachments?.length).toBe(1)
+    expect(result.attachments?.[0].mime).toBe("image/png")
+    expect(parsed.mode).toBe("full")
+    expect(parsed.render.views.map((entry) => entry.view)).toEqual(["front"])
+  }, 240_000)
 
   test("export resolves relative path against project", async () => {
     const output = (await tools.export.execute(

@@ -27,8 +27,8 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
+- `blender-vision` — one-call scene grounding; quick = geometry/text, full = geometry + attached multi-view renders
 - `blender-render` — multi-view PNG renders
-- `blender-vision` — target-scoped multi-angle screenshots for chunk verification
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -56,9 +56,9 @@ exist — call them directly:
 | `blender-gate` | Run script through full 7-stage validation pipeline |
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
-| `blender-scene` | Query scene state (objects, materials, node groups) |
+| `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
+| `blender-vision` | One-call scene grounding: quick geometry/text, full with attached multi-view renders |
 | `blender-render` | Multi-view renders for visual critique |
-| `blender-vision` | Target-scoped multi-angle screenshots for chunk verification |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -81,6 +81,7 @@ exist — call them directly:
 | `bmesh` | Low-level mesh editing (import manually) |
 | `mathutils` | Vectors, matrices, quaternions (import manually) |
 | `numpy` | Numeric arrays for batch operations (import manually) |
+| `scipy` | Optimization, interpolation, smoothing, KD-tree search (vendored, import manually) |
 | `trimesh` | Mesh analysis: watertight, volume, winding (vendored, import manually) |
 
 ### Corpus reference patterns (retrieve via `blender-docs`)
@@ -96,24 +97,19 @@ exist — call them directly:
 
 ## Loop
 
-1. **Renders** — for final review: `blender-render` (Workbench is fine for shape
-   critique). Inspect every attached view: front, back, left, right, top, iso.
-   For chunk review: the director calls `blender-vision` targeting the chunk's
-   objects; inspect the attached per-chunk views (front_3q, side_3q, top_3q).
-2. **Describe before judging** — for EACH attached image, write one sentence
-   describing what you actually see: "long thin box on left", "cylinder too
-   short relative to base", "gap between platform and track". Never skip to
-   verdict without describing the image first.
-3. **Report** — if a gate report is attached or the scene has known issues, read
+1. **Vision** — `blender-vision` in `full` mode. Inspect every attached view:
+   front, back, left, right, top, iso. Use returned geometry summary to anchor
+   scale/proportion claims.
+2. **Report** — if a gate report is attached or the scene has known issues, read
    it: residual errors beat a pretty render. `blender-validate` re-checks the live
    scene without executing anything.
-4. **Brief check** — compare against the stated brief: correct parts present, sane
+3. **Brief check** — compare against the stated brief: correct parts present, sane
    proportions, no floating/sunk geometry, naming visible in `blender-scene`.
    Joined multi-part mesh with gaps between intended joints (gate
-   `floating_component`) = fix, even if the render looks fine.
-   For chunks: verify alignment with prior chunks — contact points flush, no
-   gaps or unintended overlaps between chunk boundaries.
-5. **Verdict** — one of:
+   `floating_component`) = fix, even if the render looks fine. If a surface that
+   should read continuous shows section lines, box seams, or Lego-like breakups,
+   call `fix` and say which objects need union/remesh/bevel/smoother normals.
+4. **Verdict** — one of:
     - `pass` — matches brief, gate clean
     - `fix` — list each discrepancy as: what is wrong, which view shows it, what
       the correct value/part is. Be specific: "column height ~1.8x platform, brief
@@ -125,10 +121,13 @@ exist — call them directly:
 
 - Shape and completeness beat surface polish; materials are last.
 - Never edit or write anything. You judge; others fix.
-- A render can lie about scale — cross-check dimensions via `blender-scene`
+- Always use fresh `blender-vision` in `full` mode before a `pass` verdict.
+- If the scene changed, was restored, or had an interruption since the last vision call, rerun `blender-vision` in `full` mode before judging.
+- If a gate failed on geometry, mesh quality, or design-level issues, use `blender-vision` in `full` mode before deciding whether the render is acceptable.
+- A render can lie about scale — cross-check dimensions via `blender-vision` or `blender-scene`
   before calling proportion errors.
-- If `blender-render` fails, review via `blender-scene` geometry summary and say
-  the verdict is geometry-only.
+- If `blender-vision` render fails, review via its geometry summary or `blender-scene`
+  and say the verdict is geometry-only. If needed, fall back to `blender-render`.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact
   error. Do not guess from file creation times.

@@ -97,6 +97,98 @@ def object_issues(obj, poly_budget=DEFAULT_POLY_BUDGET):
     return issues
 
 
+def object_geometry_snapshot(obj, poly_budget=DEFAULT_POLY_BUDGET):
+    issues = object_issues(obj, poly_budget)
+    deps = bpy.context.evaluated_depsgraph_get()
+    ev = obj.evaluated_get(deps)
+    mesh = ev.to_mesh()
+    try:
+        mesh.calc_loop_triangles()
+        connected_components = _mesh_component_count(mesh)
+        base_uv_layers = [uv.name for uv in obj.data.uv_layers]
+        evaluated_uv_layers = [uv.name for uv in mesh.uv_layers]
+        return {
+            "name": obj.name,
+            "type": obj.type,
+            "location": [round(v, 6) for v in obj.location],
+            "rotation_euler": [round(v, 6) for v in obj.rotation_euler],
+            "scale": [round(v, 6) for v in obj.scale],
+            "dimensions": [round(v, 6) for v in obj.dimensions],
+            "parent": obj.parent.name if obj.parent else None,
+            "visible": not obj.hide_render and not obj.hide_viewport,
+            "materials": [m.name for m in obj.data.materials],
+            "modifiers": [{"name": m.name, "type": m.type} for m in obj.modifiers],
+            "base_mesh": {
+                "vertices": len(obj.data.vertices),
+                "polygons": len(obj.data.polygons),
+                "uv_layers": base_uv_layers,
+            },
+            "evaluated_mesh": {
+                "vertices": len(mesh.vertices),
+                "polygons": len(mesh.polygons),
+                "tris": len(mesh.loop_triangles),
+                "uv_layers": evaluated_uv_layers,
+                "world_bounds": _world_bounds(obj),
+                "connected_components": connected_components,
+            },
+            "normals": {
+                "has_flipped_faces": any(issue["issue"] == "flipped_faces" for issue in issues),
+            },
+            "issues": issues,
+        }
+    finally:
+        ev.to_mesh_clear()
+
+
+def scene_geometry_snapshot(poly_budget=DEFAULT_POLY_BUDGET):
+    unit = bpy.context.scene.unit_settings
+    scene_issues = []
+    if unit.scale_length != 1.0:
+        scene_issues.append(
+            {"object": "<scene>", "issue": "unit_scale", "detail": f"scale_length={unit.scale_length}", "severity": "error"}
+        )
+    if unit.system == "NONE":
+        scene_issues.append(
+            {"object": "<scene>", "issue": "no_unit_system", "detail": "unit system is NONE", "severity": "error"}
+        )
+
+    bounds = None
+    objects = []
+    total_vertices = 0
+    total_polygons = 0
+    total_tris = 0
+    flagged_objects = set()
+    for obj in [entry for entry in bpy.data.objects if entry.type == "MESH"]:
+        snapshot = object_geometry_snapshot(obj, poly_budget)
+        objects.append(snapshot)
+        total_vertices += snapshot["evaluated_mesh"]["vertices"]
+        total_polygons += snapshot["evaluated_mesh"]["polygons"]
+        total_tris += snapshot["evaluated_mesh"]["tris"]
+        bounds = _merge_bounds(bounds, snapshot["evaluated_mesh"]["world_bounds"])
+        for issue in snapshot["issues"]:
+            scene_issues.append(issue)
+            if issue["object"] != "<scene>":
+                flagged_objects.add(issue["object"])
+
+    return {
+        "scene": {
+            "unit": {
+                "system": unit.system,
+                "scale_length": unit.scale_length,
+            },
+            "mesh_count": len(objects),
+            "total_vertices": total_vertices,
+            "total_polygons": total_polygons,
+            "total_tris": total_tris,
+            "bounds": bounds,
+            "flagged_objects": sorted(flagged_objects),
+            "passed": not any(issue["severity"] == "error" for issue in scene_issues),
+            "issues": scene_issues,
+        },
+        "objects": objects,
+    }
+
+
 def mesh_quality_report(volume_epsilon=1e-6):
     """Stage 5: trimesh per-mesh stats + MANIFOLD-boolean intersection checks."""
     try:
@@ -200,8 +292,8 @@ def mesh_quality_report(volume_epsilon=1e-6):
 def _face_components(shape):
     """Connected components (shells) via union-find over face adjacency.
 
-    trimesh's own split() needs a graph engine we deliberately do
-    not install into Blender's Python; face_adjacency is plain numpy.
+    trimesh's own split() needs a graph engine (scipy/networkx). We keep this helper
+    self-contained and based on face_adjacency so mesh checks do not depend on either.
     """
     parent = list(range(len(shape.faces)))
 
@@ -242,6 +334,17 @@ def _world_bounds(obj):
     )
 
 
+def _merge_bounds(first, second):
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return (
+        [min(first[0][i], second[0][i]) for i in range(3)],
+        [max(first[1][i], second[1][i]) for i in range(3)],
+    )
+
+
 def _bounds_overlap(first, second, padding=1e-9):
     return all(
         first[0][i] <= second[1][i] + padding and second[0][i] <= first[1][i] + padding
@@ -266,6 +369,32 @@ def _touch_groups(component_bounds):
                 if left != right:
                     parent[left] = right
     return len({find(i) for i in range(len(component_bounds))})
+
+
+def _mesh_component_count(mesh):
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        seen = set()
+        components = 0
+        for face in bm.faces:
+            if face.index in seen:
+                continue
+            components += 1
+            stack = [face]
+            while stack:
+                current = stack.pop()
+                if current.index in seen:
+                    continue
+                seen.add(current.index)
+                for edge in current.edges:
+                    for linked in edge.link_faces:
+                        if linked.index not in seen:
+                            stack.append(linked)
+        return components
+    finally:
+        bm.free()
 
 
 def _boolean_intersect_volume(source, target):
