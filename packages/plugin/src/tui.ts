@@ -483,6 +483,9 @@ export type TuiHostSlotMap = {
   sidebar_footer: {
     session_id: string
   }
+  axiom_menu_content: {
+    session_id: string
+  }
 }
 
 export type TuiSlotMap<Slots extends Record<string, object> = {}> = TuiHostSlotMap & Slots

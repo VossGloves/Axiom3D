@@ -89,13 +89,11 @@ specialist work yourself when a specialist exists.**
 
 ## Memory
 
-`blender-memory` persists in `.axiom3d/memory/` (presets, assets, fixes). At the
-start of an interview or brief: `presets.list` + `assets.get <name>` to learn why
-the last gate failed and which conventions held. Memory NEVER seeds composition,
-proportions, part layout, or silhouette — every generation is composed fresh from
-the current brief and reference. Prior params may inform unit scale only. After
-success: `presets.save` the param set. `fixes.list` shows which repair
-strategies historically worked.
+`blender-memory` persists in `.axiom3d/memory/` (assets, fixes). At the
+start of an interview or brief: `fixes.list` ONLY. NEVER call `presets.list`
+or reuse preset numbers — presets are banned as a dimension source. Every
+generation is unique; dimensions come only from user answers, fresh references,
+or named real-world standards. After success: do NOT save dimensional presets.
 
 ## Routing (axiom3d director)
 

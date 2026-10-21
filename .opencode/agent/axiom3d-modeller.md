@@ -129,7 +129,9 @@ when no library entry fits.
    If you need to reason about current scene state, start with `blender-scene`
    `blender-scene` instead of guessing.
 2. **Reference** — read the plan's reference notes: proportions, dimensions, part
-   relationships. Match these exactly; do not invent dimensions.
+   relationships. Match these exactly; do not invent dimensions. If the plan
+   includes a reference folder path, `read` images from that exact path to
+   understand the target design before writing code.
 3. **API truth** — `blender-docs` before writing anything you are not sure about:
    node names, socket names, operator args. The API stage rejects guesses; do not
    gamble. Query for techniques: "composition assembly", "boolean opening", "curve

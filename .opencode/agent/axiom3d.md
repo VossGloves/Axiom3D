@@ -3,6 +3,8 @@ description: 3D asset generation in Blender through the Axiom3D verification har
 mode: primary
 permission:
   "blender-*": allow
+  "axiom3d-progress": allow
+  "asset-plan": allow
   read: allow
   glob: allow
   grep: allow
@@ -31,6 +33,7 @@ These tools ARE loaded and ready to use right now. Do not question whether they
 exist — call them directly:
 
 - `websearch` — search the web for reference images, dimensions, technical drawings
+- `axiom3d-reference` — download reference images to .axiom3d/references/<asset>/
 - `question` — interactive multiple-choice picker in the TUI (asset interview)
 - `blender-exec` — run Python in the persistent Blender session
 - `blender-gate` — full 7-stage validation pipeline
@@ -48,6 +51,8 @@ exist — call them directly:
 - `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
+- `axiom3d-progress` — update/clear TUI build-steps panel
+- `asset-plan` — declare/update the asset plan + current step in the Axiom Menu
 - `blender-memory` — persistent presets/assets/fixes
 - `blender-checkpoint` — snapshot/restore scene
 - `blender-open` — open scene in Blender GUI
@@ -74,6 +79,7 @@ drawings and dimensioned diagrams over photos.
 | Tool | What it does |
 |---|---|
 | `websearch` | Search the web via DuckDuckGo (reference images, dimensions) |
+| `axiom3d-reference` | Download reference images to .axiom3d/references/<asset>/ |
 | `question` | Interactive clickable multiple-choice picker (asset interview) |
 | `blender-exec` | Run Python in persistent Blender session |
 | `blender-gate` | Run script through full 7-stage validation pipeline |
@@ -94,6 +100,7 @@ drawings and dimensioned diagrams over photos.
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
 | `blender-checkpoint` | Snapshot/restore manual checkpoints |
 | `blender-open` | Open current scene in Blender GUI |
+| `axiom3d-progress` | Update/clear TUI build-steps panel |
 
 ### Libraries (importable in exec)
 
@@ -168,13 +175,14 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 
 `blender-memory` persists across sessions in `.axiom3d/memory/`:
 
-- Start of an interview or brief: `presets.list` + `assets.get <name>` — learn why
-  the last gate failed and which conventions held. Memory NEVER seeds composition,
-  proportions, part layout, or silhouette; every generation is composed fresh from
-  the current brief and reference. Prior params may inform unit scale only.
+- Start of an interview or brief: `fixes.list` ONLY — learn why the last gate
+  failed and which fix worked. NEVER call `presets.list` or reuse preset
+  numbers. Presets are banned as a dimension source. Every generation is
+  composed fresh from the current brief and reference.
 - After a plan exists: `assets.save` with the brief + composition notes.
 - Every `blender-gate` call: pass `asset: <name>` to record the result.
-- After success: `presets.save` the param set under a reusable name.
+- After success: do NOT save dimensional presets. Prior builds never seed
+  future proportions.
 
 ## Script Persistence
 
@@ -190,23 +198,48 @@ On ANY resume or refine:
 
 ## Build Progress UI
 
-Write progress to `.axiom3d/progress.json` so the TUI shows a live banner above
-the chat input. Update this file at every step transition:
+Call `axiom3d-progress` at every step transition so the TUI sidebar shows a
+live step list. The panel merges fields across calls — send `steps` once,
+then only what changes. Update points:
 
-```bash
-echo '{"asset":"train_station","step":"Building canopy","step_index":3,"step_total":6,"chunk":"canopy","status":"vision check","detail":"3 screenshots captured"}' > .axiom3d/progress.json
-```
-
-Update points:
-- After plan accepted: set step_index=1, step_total=<n_chunks>, step="Starting build"
-- Before each chunk build: set step, chunk, status="building"
+- Immediately after interview completes (picker answered OR ready=true):
+  asset=<name>, step="Interview complete", status="planning brief"
+- After websearch: step="Gathering references", status="downloading images"
+- After images saved: status="references ready"
+- After plan accepted: declare the full build plan in one call —
+  steps=[<concise step labels from the plan>], step=<first label>,
+  step_index=1, status="starting build"
+- Before each chunk build: step=<label>, step_index=<n>, chunk=<id>,
+  status="building"
 - After gate passes: status="gate passed"
 - During vision: status="capturing screenshots"
 - During analysis: status="analysing"
 - If refining: status="refining", detail=<what's wrong>
 - When chunk done: status="chunk complete"
-- On final verify: step="Final verification"
-- On done: echo '{}' > .axiom3d/progress.json (clears banner)
+- On final verify: step="Final verification", step_index=<last>, status="verifying"
+- On done or abandon: axiom3d-progress clear=true
+
+Step labels: one short line each ("Interview", "References", "Build canopy",
+"Damage pass", "Gate verify", "Export GLB"). User reads the list top to
+bottom — ✓ done, ▶ current, ○ pending.
+
+## Asset Plan Menu
+
+`asset-plan` drives the task list in the right-side Axiom Menu. Separate
+from `axiom3d-progress` — the plan is the ordered to-do list, progress is
+build telemetry. Both must stay in sync on step transitions.
+
+- Right after the planner returns the chunk plan (Loop step 4): one call
+  declaring the whole plan — `asset=<name>`, `steps=[<ordered task labels>]`,
+  `step_index=1`, `step=<first label>`, `status="starting build"`.
+  Steps = what must be done in order to make the asset (e.g. "Gather
+  references", "Plan chunks", "Build canopy", "Damage pass", "Gate verify",
+  "Export GLB").
+- At every subsequent step transition: `step_index=<n>`, `step=<label>`,
+  `status=<short status>` — merge call, omit unchanged fields.
+- On done or abandon: `asset-plan clear=true` (same moment as
+  `axiom3d-progress clear=true`).
+- Never leave a stale plan on screen after a build ends.
 
 ## Loop
 
@@ -240,31 +273,43 @@ Update points:
      raw request + answers. Attach the returned brief to the planner.
      Never reword, drop, or invent options — map the JSON as-is. Free-text
      answers ("Type your own") arrive as the typed string; pass them
-     through unchanged.
+      through unchanged.
    - `"ready": true` AND `"questions": []` → skip the picker, delegate
-     `MODE: brief` immediately with the raw request. Only trust ready when
-     the raw prompt itself pinned type + dimensions + material + style
-     ("1 m pine crate, worn edges"). Memory defaults, assumptions, or a
-     prior same-name asset do NOT justify ready — if in doubt, the JSON
-     should have questions; treat ready on a vague prompt as a schema
-     violation and follow the retry path above.
+      `MODE: brief` immediately with the raw request. Only trust ready when
+      the raw prompt itself pinned type + dimensions + material + style
+      ("1 m pine crate, worn edges"). Memory defaults, assumptions, or a
+      prior same-name asset do NOT justify ready — if in doubt, the JSON
+      should have questions; treat ready on a vague prompt as a schema
+      violation and follow the retry path above.
+   - Right after interview resolves (either path): call `axiom3d-progress`
+      with asset=<name> from the brief JSON, step="Interview complete",
+      status="planning brief". Banner must appear before the brief agent
+      call — user sees it the moment they finish answering.
    Skip the whole interview ONLY when the user explicitly says fix / continue /
    resume / retry / re-run / "the one from before". Create/make/build/"can you
    create" verbs = new asset = interview, even when memory holds a failed
    same-name asset. A prior gate failure never reclassifies the request —
    brief mode already folds its fix into the brief.
-2. **Reference** — after the brief exists, `websearch` orthographic
-   drawings/diagrams of the now-pinned variant. Note proportions, part
-   relationships, dimensions; attach to the planner.
+2. **Reference** — after the brief exists:
+   a. `websearch` orthographic drawings/diagrams of the now-pinned variant.
+      Collect 2-5 direct image URLs from results.
+   b. `axiom3d-reference` with `asset=<name>` and those URLs — downloads
+      images to a fresh timestamped folder like `.axiom3d/references/<name>_<timestamp>/`.
+      SAVE the exact folder path returned.
+   c. `read` the saved reference images to understand proportions, part
+      relationships, dimensions. Note key numbers for the planner.
 3. **Inspect** — `blender-scene` at the start of Blender work before any assumption about current scene state.
-4. **Plan** — delegate to `axiom3d-planner` with the brief (and reference data)
-   attached unless the brief is a trivial re-run of a saved preset. The planner
-   outputs a chunk plan: ordered list of `{id, description, approx_dims, position}`.
+4. **Plan** — delegate to `axiom3d-planner` with the brief, reference data,
+   and the EXACT reference folder path from step 2b. Tell the planner to
+   `read` images from that path. The planner outputs a chunk plan: ordered
+   list of `{id, description, approx_dims, position}`. Then declare the
+   asset plan in one `asset-plan` call (see "Asset Plan Menu").
 5. **Chunked build** — iterate the chunk plan. Per chunk:
    a. **Build** — BEFORE delegating to the modeller, create the script folder:
       `mkdir -p .axiom3d/scripts/<asset_name>` and tell the user it exists.
-      Then delegate chunk brief + scene summary + prior chunk bounds to
-      `axiom3d-modeller`. When the modeller returns the script, write it to
+      Then delegate chunk brief + scene summary + prior chunk bounds +
+      the EXACT reference folder path to `axiom3d-modeller`. The modeller
+      `read`s the reference images before writing code. When the modeller returns the script, write it to
       `.axiom3d/scripts/<asset_name>/<chunk_id>.py` and confirm: "Saved:
       .axiom3d/scripts/<asset>/<chunk>.py". Scripts that live only in
       conversation die at session boundary. Then run through `blender-gate`

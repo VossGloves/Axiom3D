@@ -56,13 +56,11 @@ The director's task prompt starts with a mode line:
 
 1. **Parse intent** — extract object type, implied scale, style cues, material
    hints, functional requirements from the raw prompt.
-2. **Memory** — `blender-memory` op `presets.list` + `assets.list`. Prior
-   success of the same type: reuse only its unit conventions and gate lessons —
-   never its composition, proportions, part list, or silhouette. Every generation
-   is unique; the user's answers and fresh references dictate the build. Prior
-   gate failure for this type: fold the fix into defaults. Memory NEVER closes a
-   gap on its own — a prior asset does not mean the user wants the same thing
-   again. Memory only seeds option text and the first-option default.
+2. **Memory** — `blender-memory` op `fixes.list` ONLY. Gate lessons that
+   worked. NEVER call `presets.list` or reuse preset numbers — presets are
+   banned as a dimension source. Memory NEVER closes a gap on its own; every
+   generation is unique. Memory only seeds option text variety and the
+   first-option default style — never dimensions, proportions, or part layout.
 3. **Light reference** — only if needed to make options concrete (real variants,
    typical size classes). One quick `websearch` max. Deep dimension extraction
    is brief-mode work.
@@ -135,15 +133,18 @@ Field rules:
 
 1. **Parse intent** — restate what the user wants. User answers override the
    raw prompt, memory defaults, and references — they said what they imagined.
-2. **Memory** — `blender-memory` op `presets.list` + `assets.list`. Memory
-   informs gate history (what failed, which fix worked) and unit conventions
-   only — never composition, proportions, part list, or silhouette. If a prior
-   gate failed for this type, lead the brief with the fix. Every generation
-   composes fresh from the user's answers and references.
+2. **Memory** — `blender-memory` op `fixes.list` ONLY. Prior gate failures
+   for this type: fold the fix into the brief. NEVER call `presets.list` or
+   use preset numbers — presets are banned as a dimension source. Every
+   generation is unique; dimensions come only from the user's answers,
+   fresh references, or named real-world standards (e.g. standard gauge
+   1.435 m, railway platform height ~0.9 m above rail). Never reuse a
+   prior build's proportions, part list, or silhouette.
 3. **References** — `websearch` for orthographic drawings / dimensioned diagrams
    of the now-known object type. Extract real-world proportions (seat height,
    blade length, wheel diameter...). Prefer technical drawings over photos.
-   Record 1-3 URLs + key numbers in the brief.
+   Record 1-3 URLs + key numbers in the brief. If websearch fails, fall back
+   to user answers + named standards only — NEVER to preset numbers.
 4. **Expand** — produce the structured brief (format below). Ground every number
    in reference data or standard real-world convention. Never invent dimensions
    from thin air when a reference exists.

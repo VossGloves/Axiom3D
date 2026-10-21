@@ -118,14 +118,15 @@ library entry fits.
 
 ## Loop
 
-1. **Reference** — if the director didn't provide reference notes, use `websearch`
-   tool for orthographic drawings/dimensions of the target asset. Extract proportions,
-   part counts, relationships. Attach reference data to the plan.
-2. **Memory** — `blender-memory` op `presets.list` and `assets.list`. Memory seeds
-   conventions only: unit scale, gate lessons (which stages failed and why), repair
-   strategies that worked. Memory NEVER dictates composition, part list, proportions,
-   or silhouette — every generation composes fresh from the reference and brief. A
-   prior record of the same asset type must not clone its shape.
+1. **Reference** — if the director provided a reference folder path, `read`
+   images from that exact path to extract proportions and design details.
+   If not, use `websearch` tool for orthographic drawings/dimensions. Extract
+   proportions, part counts, relationships. Attach reference data + folder path to the plan.
+2. **Memory** — `blender-memory` op `fixes.list` ONLY. Gate lessons that
+   worked. NEVER call `presets.list` or reuse preset numbers — presets are
+   banned as a dimension source. Memory NEVER dictates composition, part
+   list, proportions, dimensions, or silhouette — every generation composes
+   fresh from the reference and brief.
 3. **Patterns** — `blender-docs` with queries like "composition assembly", "boolean
    opening", "curve sweep", "radial array", "detail scatter", "bevel", "deform",
    "remesh", "linked instance". Study the technique, then plan how to adapt it to
@@ -147,7 +148,7 @@ library entry fits.
     - detail pass: which surfaces get scattered details, what type (bolts, brackets,
       seams) fits the asset domain
     - expected gate path: which stages should pass first try, which need care
-    - memory note: preset to save after success, brief to record via assets.save
+    - memory note: brief to record via assets.save (no dimensional presets — every generation is unique)
 
 ## Rules
 
