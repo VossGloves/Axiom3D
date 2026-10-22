@@ -37,7 +37,7 @@ export default tool({
     NODE_SPEC,
   args: {
     spec: tool.schema
-      .record(tool.schema.any())
+      .record(tool.schema.string(), tool.schema.any())
       .describe("Root spec node (recursive dict, see tool description for kinds)"),
     name: tool.schema.string().optional().describe("Object name (snake_case)"),
     resolution: tool.schema
