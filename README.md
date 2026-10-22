@@ -40,8 +40,9 @@ with structured evidence.
   returns a structured JSON report with evidence. Script stages (syntax, API symbols,
   exec) fail fast; scene stages (geometry, mesh quality, export roundtrip, render) all
   run and accumulate issues so one report carries everything the agent needs to fix.
-- **Geometry tools** — `blender-primitive`, `blender-curve`, `blender-boolean`,
-  `blender-modify` (bevel, array, remesh, deform, displace, linked-instance),
+- **Geometry tools** — `blender-primitive`, `blender-sdf` (organic meshes from JSON SDF
+  specs: smooth blend CSG, shell, warps, via the vendored libfive kernel), `blender-curve`,
+  `blender-boolean`, `blender-modify` (bevel, array, remesh, deform, displace, linked-instance),
   `blender-material` (10-entry PBR library), `blender-assembly`, `blender-damage`.
   Agents build each asset's specific proportions and details in code.
 - **Live API corpus** (`blender-docs`) — resolves a human name ("Principled BSDF") to the

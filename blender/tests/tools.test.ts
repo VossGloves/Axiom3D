@@ -15,7 +15,7 @@ import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderDocs from "../../.opencode/tools/blender-docs"
 import blenderMaterial from "../../.opencode/tools/blender-material"
 import blenderModify from "../../.opencode/tools/blender-modify"
-import blenderVision from "../../.opencode/tools/blender-vision"
+import blenderChunkVision from "../../.opencode/tools/blender-chunk-vision"
 import { request, restart, stop } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
@@ -42,7 +42,7 @@ const tools = {
   docs: blenderDocs,
   material: blenderMaterial,
   modify: blenderModify,
-  vision: blenderVision,
+  vision: blenderChunkVision,
 }
 
 beforeAll(async () => {
@@ -146,41 +146,30 @@ print(f"nearest_distance={float(distance):.6f}")`,
     expect(result.output).toContain(".png")
   }, 240_000)
 
-  test("vision quick returns geometry without attachments", async () => {
-    const result = (await tools.vision.execute({ mode: "quick" }, context)) as {
+  test("chunk-vision captures views of a target object", async () => {
+    const result = (await tools.vision.execute({ target: "crate_tool" }, context)) as {
       title: string
       output: string
       attachments?: Array<{ mime: string; url: string }>
     }
-    const parsed = JSON.parse(result.output) as {
-      mode: string
-      geometry: { scene: { mesh_count: number; total_tris: number } }
-    }
-    expect(result.title).toBe("Blender vision (quick)")
-    expect(result.attachments).toBeUndefined()
-    expect(parsed.mode).toBe("quick")
-    expect(parsed.geometry.scene.mesh_count).toBeGreaterThanOrEqual(1)
-    expect(parsed.geometry.scene.total_tris).toBeGreaterThan(0)
-  })
+    expect(result.title).toContain("crate_tool")
+    expect(result.attachments?.length).toBeGreaterThan(0)
+    expect(result.attachments?.[0].mime).toBe("image/png")
+    expect(result.attachments?.[0].url).toContain("data:image/png;base64,")
+  }, 240_000)
 
-  test("vision full attaches PNG views", async () => {
+  test("chunk-vision frames only the named target", async () => {
     const result = (await tools.vision.execute(
-      { mode: "full", views: ["front"] },
+      { target: "crate_tool", views: [{ name: "front", azimuth: 0, elevation: 0 }], engine: "workbench" },
       context,
     )) as {
       title: string
-      output: string
       attachments?: Array<{ mime: string; url: string }>
     }
-    const parsed = JSON.parse(result.output) as {
-      mode: string
-      render: { views: Array<{ view: string; file: string }> }
-    }
-    expect(result.title).toBe("Blender vision (full)")
+    expect(result.title).toContain("crate_tool")
+    expect(result.title).toContain("1 views")
     expect(result.attachments?.length).toBe(1)
     expect(result.attachments?.[0].mime).toBe("image/png")
-    expect(parsed.mode).toBe("full")
-    expect(parsed.render.views.map((entry) => entry.view)).toEqual(["front"])
   }, 240_000)
 
   test("export resolves relative path against project", async () => {

@@ -2,7 +2,7 @@
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
 the pump), exec, snapshot, restore, reset, query, render, vision, export, validate,
 gate, docs, repair, materials, primitives, curves, booleans, assemblies, damage,
-modify."""
+modify, sdf."""
 
 from rpc.base import ExecScriptError, WorkerError, require_live
 from rpc import (
@@ -18,6 +18,7 @@ from rpc import (
     primitives,
     render,
     repair,
+    sdf,
     session,
     validate,
     vision,
@@ -56,6 +57,8 @@ COMMANDS = {
     "surface_noise": damage.cmd_surface_noise,
     "dents": damage.cmd_dents,
     "modify": modify.cmd_modify,
+    "sdf_build": sdf.cmd_sdf_build,
+    "sdf_status": sdf.cmd_sdf_status,
 }
 
 

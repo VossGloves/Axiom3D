@@ -38,6 +38,7 @@ exist — call them directly:
 - `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
 - `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
 - `blender-boolean` — difference/union/intersect on meshes
+- `blender-sdf` — organic mesh from JSON spec: smooth blends, shell, warps (one-time `./blender/install-libfive.sh`)
 - `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list
 - `blender-material` — list/apply PBR materials
 - `blender-assembly` — group multi-part assets
@@ -67,6 +68,7 @@ exist — call them directly:
 | `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
 | `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
 | `blender-boolean` | Difference/union/intersect on meshes |
+| `blender-sdf` | Build organic mesh from JSON SDF spec (smooth blends, shell, warps) |
 | `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
 | `blender-material` | List/apply PBR materials |
 | `blender-assembly` | Group multi-part assets, mark members for gate opt-out |

@@ -52,7 +52,9 @@ specialist work yourself when a specialist exists.**
       alignment with prior chunks, match to brief. If problems, read saved
       script from disk, delegate refine to modeller (max 3 attempts).
    e. **Advance** — only after vision passes does the next chunk begin.
-5. **Compose** — build from `blender-primitive` (base shapes), `blender-curve`
+5. **Compose** — build from `blender-primitive` (base shapes), `blender-sdf`
+   (organic forms that must read as one skin: smooth blend unions/differences,
+   shell, twirl/taper/attract warps), `blender-curve`
    (pipes, cables, organic paths), `blender-boolean` (cutouts/unions). Use
    `blender-assembly` for multi-part assets. When forms should read as one skin,
    boolean-union or remesh them; do not leave stacked coplanar boxes that read
@@ -124,8 +126,8 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 - Vision is stale if no vision has run yet for current Blender task,
   or any scene mutation/interruption/restart/restore happened since last vision.
 - Scene mutations include `blender-exec`, `blender-gate` when code runs,
-  `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`,
-  `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
+  `blender-primitive`, `blender-sdf`, `blender-curve`, `blender-boolean`,
+  `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
 - Before any claim about scene contents, if state is stale run `blender-scene`
   (`blender-scene`).
 - Before reviewer pass, final verdict, or export, run `blender-chunk-vision`.
@@ -167,6 +169,7 @@ Issue vocabulary (fix all errors):
 ## Geometry Tools
 
 - `blender-primitive` — cube, sphere, cylinder, cone, torus, plane, circle, grid
+- `blender-sdf` — organic mesh from JSON SDF spec: smooth blend union/difference/intersection, shell, twirl/taper/attract/repel/symmetry (one-time `./blender/install-libfive.sh`; auto-reduces resolution to the 100k vertex budget)
 - `blender-curve` — bezier/nurbs/poly curves, convert to mesh, sweep profile along path
 - `blender-boolean` — difference/union/intersect (single or batch)
 - `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform (bend/twist/taper), displace, linked-instance (shared mesh), apply (bake modifiers), list

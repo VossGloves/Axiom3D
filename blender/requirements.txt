@@ -3,5 +3,7 @@
 # --no-deps so Blender's bundled numpy that bpy links against is never replaced:
 #   "& <Blender>\5.2\python\bin\python.exe" -m pip install --no-deps --target blender\vendor -r blender\requirements.txt
 # worker.py puts vendor/ on sys.path at startup.
+# libfive (SDF kernel for blender-sdf) is NOT pip-installable — run once:
+#   ./blender/install-libfive.sh
 scipy==1.18.1
 trimesh==5.1.1

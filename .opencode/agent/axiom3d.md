@@ -41,6 +41,7 @@ exist — call them directly:
 - `blender-primitive` — create cube/sphere/cylinder/cone/torus/plane/circle/grid
 - `blender-curve` — create bezier/nurbs/poly curves, convert to mesh, sweep
 - `blender-boolean` — difference/union/intersect on meshes (single or batch)
+- `blender-sdf` — organic mesh from JSON spec: smooth blends, shell, warps (one-time `./blender/install-libfive.sh`)
 - `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list
 - `blender-material` — list/apply PBR materials from the library
 - `blender-assembly` — group multi-part assets, mark members for gate opt-out
@@ -87,6 +88,7 @@ drawings and dimensioned diagrams over photos.
 | `blender-primitive` | Create cube/sphere/cylinder/cone/torus/plane/circle/grid |
 | `blender-curve` | Create bezier/nurbs/poly curves, convert to mesh, sweep |
 | `blender-boolean` | Difference/union/intersect on meshes (single or batch) |
+| `blender-sdf` | Build organic mesh from JSON SDF spec (smooth blends, shell, warps) |
 | `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
 | `blender-material` | List/apply PBR materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted) |
 | `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
@@ -341,7 +343,8 @@ build telemetry. Both must stay in sync on step transitions.
   markdown. Map brief-agent JSON to the tool 1:1: no reworded labels, no
   dropped options, no extra questions. The tool's built-in "Type your own
   answer" covers free text; never add a catch-all option yourself.
-- Compose from primitives (`blender-primitive`), curves (`blender-curve`), booleans
+- Compose from primitives (`blender-primitive`), organic fused forms
+  (`blender-sdf` — smooth blends fuse parts as one skin), curves (`blender-curve`), booleans
   (`blender-boolean`), and modifiers (`blender-modify`). Build each asset's specific
   proportions and details in code — do not reuse fixed library shapes.
 - Apply bevel to hard-surface assets: `ops.bevel_all_boxes()` or `ops.add_bevel(obj)`
@@ -368,7 +371,7 @@ build telemetry. Both must stay in sync on step transitions.
 ## Vision Policy
 
 - Start Blender work with `blender-scene` to inspect current scene state.
-- After any scene mutation, refresh with `blender-scene`. Mutations include `blender-exec`, `blender-gate` when code runs, `blender-primitive`, `blender-curve`, `blender-boolean`, `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
+- After any scene mutation, refresh with `blender-scene`. Mutations include `blender-exec`, `blender-gate` when code runs, `blender-primitive`, `blender-sdf`, `blender-curve`, `blender-boolean`, `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
 - Before any claim about scene contents, run `blender-scene` if state is stale.
 - Vision is stale if no vision has run yet in this Blender task, or any mutation/interruption/restart/restore happened since the last vision call.
 - After cancel, interrupt, timeout, restart, or restore, run `blender-chunk-vision` on key objects to verify geometry.
