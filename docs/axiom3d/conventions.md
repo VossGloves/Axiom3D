@@ -66,3 +66,13 @@ the issue vocabulary below as structured evidence.
   within 1%, triangle count within 1%. Vertex counts are reported but not compared —
   the glTF exporter splits vertices per unique normal/UV, so they change legitimately
   across a roundtrip.
+
+## Mesh script safety
+
+- Guard `min()`/`max()`/`len()` calls on object vertex arrays: `cleanup_mesh` or a
+  modifier bake can legitimately produce zero verts when voxel_size > feature size
+  or displacement strength is too high. Check `if not obj.data.vertices:` and raise
+  a descriptive `RuntimeError` before computing bounds — never call `min()` on an
+  empty iterable.
+- After any bake/cleanup pass, re-check `len(obj.data.vertices) > 0` before
+  finalize steps (ground snap, UV project, material assign).

@@ -110,7 +110,7 @@ exist — call them directly:
 
 `bevel-modifier`, `boolean-opening`, `curve-sweep`, `radial-array`,
 `detail-scatter`, `composition-assembly`, `deform-simple`, `remesh-voxel`,
-`linked-instance`. Study technique, plan adaptation — never plan copy-paste.
+`linked-instance`, `organic-foliage`. Study technique, plan adaptation — never plan copy-paste.
 
 ### Materials
 
@@ -169,6 +169,11 @@ library entry fits.
 - If silhouette should read as one shell, plan boolean union or remesh instead of
   stacked coplanar boxes; visible Lego seams are a modeling failure, not style.
   after base geometry passes gate.
+- Organic assets via `blender-sdf`: plan smooth-union of 8-12 varied spheres for
+  clumps (blend 0.05-0.10m), cone+taper for limbs (base_scale 2-3x, min radius
+  0.02m), post-pass damage/displace/material. Span > 4m → chunk into 2-3 SDF builds.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact
   error. Do not guess from file creation times.
+- NEVER call `task` to delegate — you are a leaf subagent. Do all planning yourself;
+  return the chunk plan in one block.

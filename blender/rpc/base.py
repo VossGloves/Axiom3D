@@ -114,7 +114,7 @@ def require_live(operation):
 def scene_summary():
     summary = {}
     for obj in bpy.data.objects:
-        if obj.type == "MESH":
+        if obj.type == "MESH" and obj.data:
             summary[obj.name] = (obj.type, len(obj.data.vertices), len(obj.data.materials))
         else:
             summary[obj.name] = (obj.type, -1, 0)

@@ -367,6 +367,18 @@ build telemetry. Both must stay in sync on step transitions.
   error. Do not guess from file creation times.
 - Subagents cannot nest; pass them the evidence they need (gate report, brief,
   reference notes) in the task prompt — they cannot see this conversation.
+- **Blender worker is single-instance.** All Blender tool calls share one process;
+  they serialize internally via the client chain. NEVER issue parallel Blender tool
+  calls (`blender-gate`, `blender-exec`, `blender-scene`, `blender-render`,
+  `blender-chunk-vision`, `blender-validate`, `blender-primitive`, `blender-sdf`,
+  etc.) — queue them one at a time, wait for each result before the next. Parallel
+  calls race the same worker, cause transport failures and worker restarts, and
+  wipe scene state (appear/disappear loops). One Blender command at a time.
+- **Never call `task` for debugging/fix loops.** When a gate fails or a script
+  errors, do the diagnosis and fix inline in this session. Only delegate to a
+  subagent for a well-scoped creative/design decision. Modeller/repair calls that
+  fan out in parallel produce duplicate racing fixes — single-shot inline fix is
+  the correct path for transport/exec failures.
 
 ## Vision Policy
 

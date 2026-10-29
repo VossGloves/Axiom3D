@@ -64,6 +64,15 @@ def run_gate(code, params):
             )
         )
         return _report(stages, started)
+    except Exception as exc:  # noqa: BLE001 - any exec failure is stage evidence, never a crash
+        stages.append(
+            _stage(
+                "exec",
+                False,
+                issues=[{"type": type(exc).__name__, "message": str(exc), "severity": "error"}],
+            )
+        )
+        return _report(stages, started)
     stages.append(
         _stage(
             "exec",
@@ -78,7 +87,17 @@ def run_gate(code, params):
 
     post_exec = cmd_snapshot({"label": "gate"})
 
-    geometry = scene_geometry_report(poly_budget)
+    try:
+        geometry = scene_geometry_report(poly_budget)
+    except Exception as exc:  # noqa: BLE001 - evidence stage, never crash
+        stages.append(
+            _stage(
+                "geometry",
+                False,
+                issues=[{"object": "<scene>", "issue": "geometry_check_failed", "detail": str(exc), "severity": "error"}],
+            )
+        )
+        return _report(stages, started)
     if geometry["mesh_count"] == 0:
         geometry["issues"].append(
             {"object": "<scene>", "issue": "no_mesh_objects", "detail": "script produced no mesh objects", "severity": "error"}
@@ -86,7 +105,17 @@ def run_gate(code, params):
         geometry["passed"] = False
     stages.append(_stage("geometry", geometry["passed"], issues=geometry["issues"]))
 
-    quality = mesh_quality_report(volume_epsilon)
+    try:
+        quality = mesh_quality_report(volume_epsilon)
+    except Exception as exc:  # noqa: BLE001 - evidence stage, never crash
+        stages.append(
+            _stage(
+                "mesh_quality",
+                False,
+                issues=[{"object": "<scene>", "issue": "quality_check_failed", "detail": str(exc), "severity": "error"}],
+            )
+        )
+        return _report(stages, started)
     if quality.get("skipped"):
         stages.append({"name": "mesh_quality", "passed": True, "skipped": True, "detail": {"reason": quality["reason"]}})
     else:
@@ -116,7 +145,16 @@ def run_gate(code, params):
             stages.append(_roundtrip_stage(post_exec["path"]))
 
     if params.get("render", True):
-        stages.append(_render_stage(params))
+        try:
+            stages.append(_render_stage(params))
+        except Exception as exc:  # noqa: BLE001 - render failure is stage evidence, never a crash
+            stages.append(
+                _stage(
+                    "render",
+                    False,
+                    issues=[{"issue": "render_stage_failed", "detail": str(exc), "severity": "error"}],
+                )
+            )
 
     return _report(stages, started)
 

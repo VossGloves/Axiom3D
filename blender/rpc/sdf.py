@@ -20,7 +20,17 @@ Spec is a recursive node dict:
 
 `blend`/`offset`/`radius` are meters; node transforms apply after the node's own
 content while children keep their own. Bounds auto-derive from the spec AABB
-(blend + pad) unless bounds_min/bounds_max are given explicitly.
+(blend + pad) unless bounds_min/bounds_min are given explicitly.
+
+Organic composition rules (all future organic assets):
+- Canopy/clump masses: smooth-union 8-12 varied spheres, blend 0.05-0.10m max;
+  blend > 0.15 collapses clumps into one ball.
+- Limbs/trunk/stems: cone primitive + taper node (base_scale 2-3x), min radius
+  0.02m so marching cubes samples them at the resolution floor.
+- Post-pass after build: blender-damage surface_noise + blender-modify displace
+  for surface breakup; blender-material for color/roughness.
+- Span > 4m: build in 2-3 chunks (base, body, detail) so per-chunk resolution
+  stays high; single-shot large spans hit the cell cap and lose thin features.
 """
 
 import json
@@ -41,7 +51,9 @@ _SDF_SRC = os.path.join(_VENDOR, "libfive", "src")
 _INSTALL_HINT = "./blender/install-libfive.sh"
 _BLEND_EPS = 1e-6
 _MIN_DIM = 0.05
-_MAX_CELLS = 512
+_MAX_CELLS = 1024
+_MIN_RES = 16
+_THIN_SPAN = 0.1
 _CLIP_TOL = 1e-4
 _KINDS = "primitive, csg, shell, twirl, taper, attract, repel, symmetry"
 
@@ -102,14 +114,22 @@ def cmd_sdf_build(params):
             bounds_max[axis] = mid + _MIN_DIM / 2
 
     max_span = max(bounds_max[i] - bounds_min[i] for i in range(3))
+    min_span = min(bounds_max[i] - bounds_min[i] for i in range(3))
     used_res = float(resolution)
+    # Per-axis cell cap: a tall/thin asset (tree, limb, stem) must not spend its
+    # whole budget on the long axis; the thin axis drives detail survival.
     if max_span * used_res > _MAX_CELLS:
         used_res = _MAX_CELLS / max_span
+    # Thin features (veins, twigs, bark ridges) vanish below the floor even at
+    # small spans; bump resolution so a 0.02m branch survives marching cubes.
+    # Use <= to include the _MIN_DIM-clamped case (span exactly _MIN_DIM).
+    if min_span <= _THIN_SPAN:
+        used_res = min(max(used_res, _MAX_CELLS / max(min_span, 1e-3)), 512.0)
     if used_res < 4:
         raise WorkerError(
             "BadRequest",
             f"bounds span {max_span:.3f}m needs more than {_MAX_CELLS} cells even at the 4 cells/m floor; "
-            "shrink bounds_min/bounds_max or model at smaller scale",
+            "shrink bounds_min/bounds_max, model at smaller scale, or build in smaller chunks",
         )
 
     verts, tris, used_res, flags, bounds_used = _mesh(lib, shape, bounds_min, bounds_max, used_res, DEFAULT_POLY_BUDGET)
@@ -168,7 +188,7 @@ def _mesh(lib, shape, bounds_min, bounds_max, resolution, budget):
         if _clipped(data[0], box):
             # explicit user bounds may intentionally cut the field — warn, don't fail
             flags["bounds_clipped"] = True
-    while len(data[0]) > budget and resolution > 8:
+    while len(data[0]) > budget and resolution > _MIN_RES:
         resolution /= 2
         data = shape.get_mesh(xyz_min=tuple(box[0]), xyz_max=tuple(box[1]), resolution=resolution)
         flags["resolution_reduced"] = True
@@ -178,7 +198,7 @@ def _mesh(lib, shape, bounds_min, bounds_max, resolution, budget):
         raise WorkerError(
             "OverBudget",
             f"{len(data[0])} verts at {resolution:.0f} cells/m still exceeds the {budget} vertex budget; "
-            "simplify the spec or lower params.resolution",
+            "simplify the spec, build in smaller chunks, or lower params.resolution",
         )
     return data[0], data[1], resolution, flags, (box[0], box[1])
 

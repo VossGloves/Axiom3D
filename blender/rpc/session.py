@@ -240,6 +240,8 @@ def cmd_query(params):
     if kind == "objects":
         objects = []
         for obj in bpy.data.objects:
+            # obj.data can be None (deleted mesh), material slots can hold None
+            mesh = obj.data if obj.type == "MESH" else None
             entry = {
                 "name": obj.name,
                 "type": obj.type,
@@ -249,13 +251,13 @@ def cmd_query(params):
                 "dimensions": [round(v, 6) for v in obj.dimensions],
                 "parent": obj.parent.name if obj.parent else None,
                 "visible": not obj.hide_render and not obj.hide_viewport,
-                "materials": [m.name for m in obj.data.materials] if obj.type == "MESH" else [],
+                "materials": [m.name for m in mesh.materials if m] if mesh else [],
                 "modifiers": [{"name": m.name, "type": m.type} for m in obj.modifiers],
             }
-            if obj.type == "MESH":
-                entry["vertices"] = len(obj.data.vertices)
-                entry["polygons"] = len(obj.data.polygons)
-                entry["uv_layers"] = [uv.name for uv in obj.data.uv_layers]
+            if mesh:
+                entry["vertices"] = len(mesh.vertices)
+                entry["polygons"] = len(mesh.polygons)
+                entry["uv_layers"] = [uv.name for uv in mesh.uv_layers]
             objects.append(entry)
         return {"objects": objects}
     if kind == "geometry":

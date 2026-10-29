@@ -148,6 +148,22 @@ const table = sqliteTable("session", {
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
 
+## Axiom3D Blender Harness
+
+- The headless Blender worker is single-instance per process. All Blender tool
+  calls (gate, exec, scene, render, vision, validate, primitive, sdf, boolean,
+  modify, damage, material, export, repair) share one worker and serialize through
+  the client queue — issue them one at a time, never in parallel. Parallel calls
+  race the same worker, cause transport failures and worker restarts, and wipe
+  scene state.
+- The `gate` pipeline never crashes on script failures: every stage (exec,
+  geometry, mesh_quality, render) catches exceptions and reports them as stage
+  evidence. A `min()`/`max()` on an empty vertex array in a build script is a
+  script bug, not a gate bug — guard it in the script before finalize steps.
+- Subagents (`axiom3d-modeller`, `axiom3d-planner`, etc.) are leaf agents: they
+  must not call `task` to delegate further. One Blender command at a time, one
+  fix attempt at a time.
+
 ## V2 Session Core
 
 - Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.

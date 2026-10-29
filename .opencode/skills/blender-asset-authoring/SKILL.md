@@ -169,7 +169,7 @@ Issue vocabulary (fix all errors):
 ## Geometry Tools
 
 - `blender-primitive` — cube, sphere, cylinder, cone, torus, plane, circle, grid
-- `blender-sdf` — organic mesh from JSON SDF spec: smooth blend union/difference/intersection, shell, twirl/taper/attract/repel/symmetry (one-time `./blender/install-libfive.sh`; auto-reduces resolution to the 100k vertex budget)
+- `blender-sdf` — organic mesh from JSON SDF spec: smooth blend union/difference/intersection, shell, twirl/taper/attract/repel/symmetry (one-time `./blender/install-libfive.sh`; auto-reduces resolution to the 100k vertex budget, min floor 16 cells/m, thin-geometry res bump <0.1m span). Organic rules: clumps = 8-12 varied spheres blend 0.05-0.10m; limbs = cone + taper base_scale 2-3x min radius 0.02m; post-pass damage/displace/material; span >4m chunk 2-3 builds.
 - `blender-curve` — bezier/nurbs/poly curves, convert to mesh, sweep profile along path
 - `blender-boolean` — difference/union/intersect (single or batch)
 - `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform (bend/twist/taper), displace, linked-instance (shared mesh), apply (bake modifiers), list

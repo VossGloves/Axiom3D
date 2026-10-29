@@ -65,6 +65,10 @@ let requestSeq = 0
 let chain: Promise<unknown> = Promise.resolve()
 let telemetryChain: Promise<void> = Promise.resolve()
 
+// Client-side lock: ensures() / restarts serialize per process so two gate calls
+// never spawn two workers against the same port file.
+let ensureLock: Promise<unknown> = Promise.resolve()
+
 // Blender's bpy is main-thread-only: the worker serializes internally, and we
 // serialize here too so parallel tool calls queue instead of racing a restart.
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
@@ -340,7 +344,7 @@ async function spawnWorker(): Promise<PortInfo> {
   throw new Error(`Blender worker failed to start; see ${join(AXIOM_DIR, "worker.log")}`)
 }
 
-async function ensure(): Promise<PortInfo> {
+async function ensureUnlocked(): Promise<PortInfo> {
   const mode = process.env.AXIOM3D_BLENDER_MODE // "gui" | "headless" | undefined (auto)
   let existing = await portInfo()
   const rememberedGui = liveRememberedGui()
@@ -446,9 +450,27 @@ async function ensure(): Promise<PortInfo> {
   return spawnWorker()
 }
 
+async function ensure(): Promise<PortInfo> {
+  const run = ensureLock.then(() => ensureUnlocked())
+  ensureLock = run.then(
+    () => {},
+    () => {},
+  )
+  return run
+}
+
 /** Kill the worker (whatever state it is in) and bring up a fresh one, restoring the
  * last snapshot the worker recorded before its last exec. No-op for GUI sessions. */
 export async function restart(): Promise<void> {
+  const run = ensureLock.then(() => restartUnlocked())
+  ensureLock = run.then(
+    () => {},
+    () => {},
+  )
+  return run
+}
+
+async function restartUnlocked(): Promise<void> {
   const previous = await portInfo()
   // Never kill a GUI session — user owns that process
   if (previous?.mode === "gui") {

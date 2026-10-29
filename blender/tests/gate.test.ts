@@ -81,6 +81,22 @@ describe("gate stage 3: exec", () => {
     const { info } = await status()
     expect(info.poisoned).toBe(false)
   })
+
+  test("script crash (empty vertex min()) is caught as exec stage evidence", async () => {
+    // Guards the min() on empty array bug: finalize computing min(v.co.z for v in
+    // obj.data.vertices) when cleanup_mesh removed every vert.
+    const report = await gate(`
+import bpy
+mesh = bpy.data.meshes.new("empty")
+obj = bpy.data.objects.new("empty_mesh", mesh)
+bpy.context.scene.collection.objects.link(obj)
+min(v.co.z for v in obj.data.vertices)
+`)
+    expect(report.failed_stage).toBe("exec")
+    expect(stage(report, "exec").passed).toBe(false)
+    const { info } = await status()
+    expect(info.poisoned).toBe(false)
+  })
 })
 
 describe("gate stage 4: geometry", () => {

@@ -116,8 +116,9 @@ exist — call them directly:
 
 Corpus reference patterns (query via `blender-docs`): `bevel-modifier`,
 `boolean-opening`, `curve-sweep`, `radial-array`, `detail-scatter`,
-`composition-assembly`, `deform-simple`, `remesh-voxel`, `linked-instance`.
-Study the technique, adapt to your asset's parameters — never copy-paste blindly.
+`composition-assembly`, `deform-simple`, `remesh-voxel`, `linked-instance`,
+`organic-foliage`. Study the technique, adapt to your asset's parameters — never
+copy-paste blindly.
 
 Materials: `concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`,
 `fabric`, `stone`, `painted`. Author custom Principled BSDF via `blender-exec`
@@ -130,6 +131,8 @@ when no library entry fits.
    do not invent an asset.
    If you need to reason about current scene state, start with `blender-scene`
    `blender-scene` instead of guessing.
+   NEVER call `task` to delegate — you are a leaf subagent. Do all work yourself;
+   return the corrected code in one code block.
 2. **Reference** — read the plan's reference notes: proportions, dimensions, part
    relationships. Match these exactly; do not invent dimensions. If the plan
    includes a reference folder path, `read` images from that exact path to
@@ -157,6 +160,17 @@ when no library entry fits.
 8. **Script-stage failures** — on syntax/api/exec errors, fix exactly the reported
    line/chain. On `ExecScriptError`, read the traceback; do not rewrite the whole
    script for one bug.
+
+## Organic SDF composition rules (when using `blender-sdf`)
+
+- Canopy/clump masses: smooth-union 8-12 varied spheres, `blend` 0.05-0.10m max;
+  blend > 0.15 collapses clumps into one ball.
+- Limbs/trunk/stems: cone primitive + `taper` node (`base_scale` 2-3x), min radius
+  0.02m so marching cubes samples them at the resolution floor.
+- After SDF build: `blender-damage surface_noise` + `blender-modify displace` for
+  surface breakup; `blender-material` for color/roughness.
+- Span > 4m: build in 2-3 chunks (base, body, detail) so per-chunk resolution stays
+  high; single-shot large spans hit the cell cap and lose thin features.
 
 ## Rules
 

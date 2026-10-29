@@ -103,6 +103,28 @@ describe("blender-sdf", () => {
     expect(output).not.toContain("WARN: surface touches bounds")
   })
 
+  test("thin feature survives high aspect-ratio span", async () => {
+    // 4m tall tree-like trunk: thin cylinder r=0.05 must not vanish from MC.
+    // Thin-geometry res bump keeps used_res high on the thin axis.
+    // Cylinder (not cone): libfive cone_z returns empty mesh for thin aspect ratios.
+    const thinSpec = {
+      kind: "primitive",
+      shape: "cylinder",
+      params: { radius: 0.05, depth: 4 },
+      location: [0, 0, 2],
+    }
+    const output = (await blenderSdf.execute({
+      spec: thinSpec,
+      name: "sdf_thin_trunk",
+      resolution: 32,
+    }, context)) as string
+    expect(output).toContain("status: ok")
+    expect(output).toContain("sdf_thin_trunk")
+    const verts = Number(/verts: (\d+)/.exec(output)?.[1])
+    expect(verts).toBeGreaterThan(100)
+    expect(output).not.toContain("resolution_reduced")
+  })
+
   test("scene reports both objects", async () => {
     const output = (await blenderScene.execute({ kind: "objects" }, context)) as string
     const parsed = JSON.parse(output) as { objects: Array<{ name: string; vertices?: number }> }
