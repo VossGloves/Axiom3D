@@ -41,7 +41,6 @@ import { LocalProvider, useLocal } from "./context/local"
 import { PermissionProvider } from "./context/permission"
 import { DialogModel } from "./component/dialog-model"
 import { useConnected } from "./component/use-connected"
-import { BlenderStatus } from "./component/blender-status"
 import { MatrixRain } from "./component/matrix-rain"
 import { DialogMcp } from "./component/dialog-mcp"
 import { DialogStatus } from "./component/dialog-status"
@@ -1124,7 +1123,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
             paddingTop={1}
             paddingRight={2}
           >
-            <BlenderStatus />
           </box>
           <Switch>
             <Match when={route.data.type === "home"}>

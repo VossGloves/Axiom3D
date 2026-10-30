@@ -28,7 +28,6 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
-- `blender-render` — multi-view PNG renders
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -42,7 +41,6 @@ exist — call them directly:
 - `blender-material` — list/apply PBR materials
 - `blender-assembly` — group multi-part assets
 - `blender-damage` — edge wear, chips, cracks, surface noise, dents
-- `webfetch` — fetch a specific URL's content
 - `task` — delegate to subagents
 - `read`, `write`, `edit`, `glob`, `grep` — file operations
 
@@ -59,7 +57,6 @@ exist — call them directly:
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
-| `blender-render` | Multi-view renders for visual critique |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |

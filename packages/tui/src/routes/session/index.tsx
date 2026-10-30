@@ -51,7 +51,7 @@ import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
-import { AxiomMenu } from "./axiom-menu"
+
 import { SubagentFooter } from "./subagent-footer.tsx"
 import { filetype } from "../../util/filetype"
 import parsers from "../../parsers-config"
@@ -1312,7 +1312,6 @@ export function Session() {
             </Show>
             <Toast />
           </box>
-          <AxiomMenu sessionID={route.sessionID} />
         </box>
       </context.Provider>
     </LocationProvider>

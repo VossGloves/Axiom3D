@@ -151,7 +151,7 @@ const table = sqliteTable("session", {
 ## Axiom3D Blender Harness
 
 - The headless Blender worker is single-instance per process. All Blender tool
-  calls (gate, exec, scene, render, vision, validate, primitive, sdf, boolean,
+  calls (gate, exec, scene, vision, validate, primitive, sdf, boolean,
   modify, damage, material, export, repair) share one worker and serialize through
   the client queue — issue them one at a time, never in parallel. Parallel calls
   race the same worker, cause transport failures and worker restarts, and wipe
@@ -160,7 +160,7 @@ const table = sqliteTable("session", {
   geometry, mesh_quality, render) catches exceptions and reports them as stage
   evidence. A `min()`/`max()` on an empty vertex array in a build script is a
   script bug, not a gate bug — guard it in the script before finalize steps.
-- Subagents (`axiom3d-modeller`, `axiom3d-planner`, etc.) are leaf agents: they
+- Subagents (`axiom3d-modeller`, `axiom3d-repair`, etc.) are leaf agents: they
   must not call `task` to delegate further. One Blender command at a time, one
   fix attempt at a time.
 

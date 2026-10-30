@@ -25,7 +25,7 @@ const OPS = [
 
 export default tool({
   description:
-    "Asset memory: gate history and learned fix outcomes across sessions. Use fixes.list at start of brief to fold prior gate failures into the plan. NEVER use presets for dimensions — every generation is unique; dimensions come only from user answers, fresh references, or named real-world standards. Storage: .axiom3d/memory/*.json.",
+    "Asset memory: gate history and learned fix outcomes across sessions. Use fixes.list at start of a build to fold prior gate failures into the plan. NEVER use presets for dimensions — every generation is unique; dimensions come only from the prompt, fresh websearch results, or named real-world standards. Storage: .axiom3d/memory/*.json.",
   args: {
     op: tool.schema.enum(OPS).describe("Memory operation"),
     key: tool.schema.string().optional().describe("Preset or asset name (presets.*, assets.*, fixes.record)"),

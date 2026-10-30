@@ -11,7 +11,7 @@ type VisionResult = {
 
 export default tool({
   description:
-    "Capture screenshots of a target object from ~3 angles for visual inspection. Frames cameras around the target's bounds, not the whole scene. Use after building a chunk to verify proportions, positioning, and design before moving on.",
+    "Capture screenshots of a target object from ~3 angles for visual inspection. Frames cameras around the target's bounds, not the whole scene. Use after a gate geometry/design failure to see the defect, or before export to verify the finished asset.",
   args: {
     target: tool.schema
       .string()
@@ -63,13 +63,13 @@ export default tool({
         .map((c) => `${c.name} (at ${c.location.map((v) => v.toFixed(2)).join(", ")})`)
         .join("\n")
       return {
-        title: `Chunk vision: ${result.target.join(", ")} — ${result.files.length} views (${result.engine_used})`,
+        title: `Vision: ${result.target.join(", ")} — ${result.files.length} views (${result.engine_used})`,
         output: [
           `target: ${result.target.join(", ")}`,
           `bounds: center=(${result.target_bounds.center.join(", ")}) radius=${result.target_bounds.radius}`,
           `engine: ${result.engine_used}`,
           `views:\n${viewLabels}`,
-          "Attached images show the target from different angles. Analyse: are proportions correct? Is it positioned right relative to prior chunks? Does geometry match the brief? Cite the view name when reporting issues.",
+          "Attached images show the target from different angles. Analyse: are proportions correct? Is positioning right? Does geometry match the requirements? Cite the view name when reporting issues.",
         ].join("\n"),
         attachments,
       }

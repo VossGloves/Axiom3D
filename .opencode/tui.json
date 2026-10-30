@@ -15,7 +15,6 @@
         }
       }
     ],
-    "./plugins/build-progress.tsx",
     "./plugins/asset-plan.tsx"
   ]
 }

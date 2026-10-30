@@ -28,7 +28,6 @@ export default tool({
       .schema.array(tool.schema.string())
       .optional()
       .describe("Full ordered step list for this build, declared once when the plan is accepted"),
-    chunk: tool.schema.string().optional().describe("Current chunk id"),
     status: tool.schema.string().optional().describe('Short status, e.g. "building", "gate passed"'),
     detail: tool.schema.string().optional().describe("Extra detail line"),
     clear: tool.schema.boolean().default(false).describe("Clear the panel (end of build)"),
@@ -40,7 +39,6 @@ export default tool({
       return "progress panel cleared"
     }
     const progress = await readExisting()
-    const stepChanged = args.step !== undefined && args.step !== progress.step
     if (args.asset) progress.asset = args.asset
     if (args.step) progress.step = args.step
     if (args.step_index !== undefined) progress.step_index = args.step_index
@@ -49,12 +47,9 @@ export default tool({
       progress.step_total = args.steps.length
     }
     if (args.step_total !== undefined) progress.step_total = args.step_total
-    // new step without a fresh chunk means previous chunk no longer current
-    if (stepChanged && args.chunk === undefined) delete progress.chunk
-    if (args.chunk) progress.chunk = args.chunk
     if (args.status) progress.status = args.status
     if (args.detail) progress.detail = args.detail
-    const changed = [args.asset, args.step, args.step_index, args.step_total, args.steps, args.chunk, args.status, args.detail].some(
+    const changed = [args.asset, args.step, args.step_index, args.step_total, args.steps, args.status, args.detail].some(
       (v) => v !== undefined,
     )
     if (!changed) return "ERROR: provide at least one field or clear=true"

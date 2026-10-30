@@ -61,7 +61,7 @@ async function searchWikimedia(query: string, maxResults: number): Promise<Searc
 
 export default tool({
   description:
-    "Search for reference images and technical drawings. Returns titles, URLs, and direct image URLs. Use before planning any 3D asset — search for orthographic drawings, dimension diagrams, blueprints. Pass image URLs to axiom3d-reference to download them.",
+    "Search for reference images and technical drawings. Returns titles, URLs, and direct image URLs. Use when the prompt lacks dimensions — search for orthographic drawings, dimension diagrams, blueprints.",
   args: {
     query: tool.schema.string().describe("Search query, e.g. 'wooden chair orthographic drawing'"),
     max_results: tool.schema.number().default(5).describe("Max results to return (1-10)"),
@@ -92,7 +92,7 @@ export default tool({
         lines.push(`Snippet: ${r.snippet}`)
         lines.push("")
       }
-      lines.push("Pass the Image URLs to axiom3d-reference to download them.")
+      lines.push("Read snippets above for dimensions; do not download images.")
       return lines.join("\n")
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`

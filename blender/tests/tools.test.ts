@@ -9,7 +9,6 @@ import blenderExec from "../../.opencode/tools/blender-exec"
 import blenderScene from "../../.opencode/tools/blender-scene"
 import blenderCheckpoint from "../../.opencode/tools/blender-checkpoint"
 import blenderValidate from "../../.opencode/tools/blender-validate"
-import blenderRender from "../../.opencode/tools/blender-render"
 import blenderExport from "../../.opencode/tools/blender-export"
 import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderDocs from "../../.opencode/tools/blender-docs"
@@ -36,7 +35,6 @@ const tools = {
   scene: blenderScene,
   checkpoint: blenderCheckpoint,
   validate: blenderValidate,
-  render: blenderRender,
   export: blenderExport,
   gate: blenderGate,
   docs: blenderDocs,
@@ -55,7 +53,7 @@ afterAll(() => {
 })
 
 describe("tool shape", () => {
-  test("eleven tools, each with description, args, execute", () => {
+  test("ten tools, each with description, args, execute", () => {
     for (const [name, definition] of Object.entries(tools)) {
       expect(typeof definition.description, name).toBe("string")
       expect(definition.description.length, name).toBeGreaterThan(40)
@@ -133,18 +131,6 @@ print(f"nearest_distance={float(distance):.6f}")`,
       true,
     )
   })
-
-  test("render attaches a data-URL PNG", async () => {
-    // generous timeout: CI renders via software GL (llvmpipe under Xvfb)
-    const result = (await tools.render.execute(
-      { engine: "workbench", width: 320, height: 180, views: ["front"] },
-      context,
-    )) as { title: string; output: string; attachments: Array<{ mime: string; url: string }> }
-    expect(result.attachments.length).toBe(1)
-    expect(result.attachments[0].mime).toBe("image/png")
-    expect(result.attachments[0].url.startsWith("data:image/png;base64,")).toBe(true)
-    expect(result.output).toContain(".png")
-  }, 240_000)
 
   test("chunk-vision captures views of a target object", async () => {
     const result = (await tools.vision.execute({ target: "crate_tool" }, context)) as {

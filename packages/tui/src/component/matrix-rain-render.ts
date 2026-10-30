@@ -132,7 +132,7 @@ export class MatrixRainPainter {
         const distance = this.head[x] - y
         if (distance >= 0 && distance < TAIL) {
           const falloff = 1 - distance / TAIL
-          const strength = (0.12 + GLYPH_DIM * falloff) * inv
+          const strength = (0.03 + GLYPH_DIM * falloff) * inv
           const tint = distance < 1 ? HEAD : GLYPH
           const [r, g, b] = mix(BASE, tint, strength)
           fg[off] = r

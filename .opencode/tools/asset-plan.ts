@@ -18,7 +18,7 @@ async function readExisting(): Promise<Record<string, unknown>> {
 
 export default tool({
   description:
-    "Declare and update the asset plan shown in the Axiom Menu. After the planner returns an ordered step list, call once with asset + steps[]. Then keep step_index in sync at every step transition. Later calls merge over existing state — omit unchanged fields. Call with clear=true when the asset build finishes or is abandoned.",
+    "Declare and update the asset plan shown in the Axiom Menu. Call once with asset + steps[]. Then keep step_index in sync at every step transition. Later calls merge over existing state — omit unchanged fields. Call with clear=true when the asset build finishes or is abandoned.",
   args: {
     asset: tool.schema.string().optional().describe("Asset name shown in the menu"),
     steps: tool
