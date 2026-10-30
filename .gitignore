@@ -43,3 +43,9 @@ graphify-out/
 # Axiom3D: pip --target deps for Blender's bundled Python (machine-local)
 blender/vendor/
 __pycache__/
+
+# Axiom3D 3D assets — local only, never commit
+assets/
+packages/opencode/assets/
+*.blend
+*.glb
