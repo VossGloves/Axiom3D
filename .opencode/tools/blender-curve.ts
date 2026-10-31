@@ -9,6 +9,7 @@ type CurveResult = {
   verts?: number
   polys?: number
   dimensions: number[]
+  snapshot?: string
 }
 
 export default tool({
@@ -53,12 +54,15 @@ export default tool({
           },
           60_000,
         )
-        return [
-          `status: ok`,
-          `created ${result.curve_type} curve "${result.name}" with ${result.points} points`,
-          `dimensions: ${JSON.stringify(result.dimensions)}`,
-          "Use action=convert_to_mesh to bake for gate/export, or action=sweep with a profile.",
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `created ${result.curve_type} curve "${result.name}" with ${result.points} points`,
+            `dimensions: ${JSON.stringify(result.dimensions)}`,
+            "Use action=convert_to_mesh to bake for gate/export, or action=sweep with a profile.",
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       if (action === "convert_to_mesh") {
         const result = await request<CurveResult>(
@@ -66,12 +70,15 @@ export default tool({
           { name: args.name },
           60_000,
         )
-        return [
-          `status: ok`,
-          `converted "${result.name}" to mesh`,
-          `verts: ${result.verts}  polys: ${result.polys}`,
-          `dimensions: ${JSON.stringify(result.dimensions)}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `converted "${result.name}" to mesh`,
+            `verts: ${result.verts}  polys: ${result.polys}`,
+            `dimensions: ${JSON.stringify(result.dimensions)}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       if (action === "sweep") {
         const result = await request<CurveResult>(
@@ -79,12 +86,15 @@ export default tool({
           { path: args.path, profile: args.profile, name: args.name, material: args.material },
           60_000,
         )
-        return [
-          `status: ok`,
-          `swept profile along path → "${result.name}"`,
-          `verts: ${result.verts}  polys: ${result.polys}`,
-          `dimensions: ${JSON.stringify(result.dimensions)}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `swept profile along path → "${result.name}"`,
+            `verts: ${result.verts}  polys: ${result.polys}`,
+            `dimensions: ${JSON.stringify(result.dimensions)}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       return `ERROR: unknown action "${action}"; use create | convert_to_mesh | sweep`
     } catch (error) {

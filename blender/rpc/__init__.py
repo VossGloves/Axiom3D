@@ -61,6 +61,31 @@ COMMANDS = {
     "sdf_status": sdf.cmd_sdf_status,
 }
 
+# Mutating commands that don't self-snapshot. exec/repair snapshot themselves;
+# dispatch injects a pre-handler snapshot for everything else here.
+MUTATING = {
+    "open_file",
+    "reset",
+    "apply_material",
+    "create_primitive",
+    "create_curve",
+    "convert_curve_to_mesh",
+    "sweep_curve",
+    "run_boolean",
+    "batch_boolean",
+    "create_assembly",
+    "dissolve_assembly",
+    "mark_assembly",
+    "apply_damage",
+    "edge_wear",
+    "chips",
+    "cracks",
+    "surface_noise",
+    "dents",
+    "modify",
+    "sdf_build",
+}
+
 
 def dispatch(request):
     cmd = request.get("cmd")
@@ -69,6 +94,23 @@ def dispatch(request):
     if not handler:
         raise WorkerError("UnknownCommand", f"unknown command: {cmd}")
     require_live(cmd)
+    if cmd in MUTATING:
+        try:
+            pre = session.cmd_snapshot({"label": f"auto-{cmd}"})
+        except WorkerError as exc:
+            return {"ok": False, "error": {"type": exc.type, "message": str(exc)}}
+        try:
+            result = handler(params)
+            if isinstance(result, dict):
+                result["snapshot"] = pre["id"]
+            return {"ok": True, "result": result}
+        except ExecScriptError as exc:
+            result = exc.result
+            if isinstance(result, dict):
+                result.setdefault("snapshot", pre["id"])
+            return {"ok": False, "error": {"type": exc.type, "message": exc.message, "result": result}}
+        except WorkerError as exc:
+            return {"ok": False, "error": {"type": exc.type, "message": str(exc)}}
     try:
         return {"ok": True, "result": handler(params)}
     except ExecScriptError as exc:

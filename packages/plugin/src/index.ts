@@ -332,4 +332,14 @@ export interface Hooks {
    * Modify tool definitions (description and parameters) sent to LLM
    */
   "tool.definition"?: (input: { toolID: string }, output: { description: string; parameters: any }) => Promise<void>
+  /**
+   * Called after SessionRevert restores durable state for a revert,
+   * unrevert, or cleanup operation. `blenderSnapshot` is the pre-mutation
+   * Blender snapshot id captured by the first dropped tool call in the
+   * reverted range, when present.
+   */
+  "session.revert"?: (
+    input: { sessionID: string; phase: "revert" | "unrevert" | "cleanup"; blenderSnapshot?: string },
+    output: {},
+  ) => Promise<void>
 }

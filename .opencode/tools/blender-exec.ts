@@ -25,13 +25,13 @@ export default tool({
       ]
       if (result.stderr.trim()) lines.push(`stderr:\n${result.stderr.trim()}`)
       lines.push(`scene_diff: ${JSON.stringify(result.scene_diff)}`)
-      return lines.join("\n")
+      return { output: lines.join("\n"), metadata: { blenderSnapshot: result.snapshot } }
     } catch (error) {
       const details = error instanceof CommandError && error.details ? error.details : null
       const head = error instanceof Error ? error.message : String(error)
       if (details) {
         const exec = details as ExecResult
-        return [
+        const output = [
           "status: script_error",
           head,
           `stdout:\n${exec.stdout?.trim() || "(empty)"}`,
@@ -41,6 +41,7 @@ export default tool({
         ]
           .filter(Boolean)
           .join("\n")
+        return { output, metadata: { blenderSnapshot: exec.snapshot ?? null } }
       }
       return `status: worker_error\n${head}`
     }

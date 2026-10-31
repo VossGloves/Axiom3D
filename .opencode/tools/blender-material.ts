@@ -2,7 +2,7 @@ import { tool } from "@opencode-ai/plugin"
 import { request } from "../lib/blender-client"
 
 type ListResult = { materials: Record<string, string> }
-type ApplyResult = { name: string; material: string; slots: number }
+type ApplyResult = { name: string; material: string; slots: number; snapshot?: string }
 
 export default tool({
   description:
@@ -28,11 +28,14 @@ export default tool({
         { name: args.name, material: args.material },
         30_000,
       )
-      return [
-        `status: ok`,
-        `applied ${result.material} to "${result.name}"`,
-        `slots: ${result.slots}`,
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `applied ${result.material} to "${result.name}"`,
+          `slots: ${result.slots}`,
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

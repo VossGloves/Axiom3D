@@ -15,6 +15,7 @@ type ModifyResult = {
   polys?: number
   applied?: Array<[string, string]>
   objects_with_modifiers?: Record<string, Array<{ name: string; type: string }>>
+  snapshot?: string
 }
 
 export default tool({
@@ -87,26 +88,35 @@ export default tool({
           .join("\n")
       }
       if (args.action === "instance") {
-        return [
-          `status: ok`,
-          `instanced "${result.source}" × ${result.count}`,
-          `created: ${result.created?.join(", ")}`,
-          `shared mesh: ${result.shared_mesh}`,
-          "Run blender-gate to confirm no unintended intersections.",
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `instanced "${result.source}" × ${result.count}`,
+            `created: ${result.created?.join(", ")}`,
+            `shared mesh: ${result.shared_mesh}`,
+            "Run blender-gate to confirm no unintended intersections.",
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       if (args.action === "apply") {
-        return [
-          `status: ok`,
-          `applied ${result.applied?.length ?? 0} modifiers on "${result.object}"`,
-          `verts: ${result.vertices}  polys: ${result.polys}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `applied ${result.applied?.length ?? 0} modifiers on "${result.object}"`,
+            `verts: ${result.vertices}  polys: ${result.polys}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
-      return [
-        `status: ok`,
-        `${result.action} on "${result.object}" → ${result.modifier} (${result.type})`,
-        `verts: ${result.vertices}  polys: ${result.polys}`,
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `${result.action} on "${result.object}" → ${result.modifier} (${result.type})`,
+          `verts: ${result.vertices}  polys: ${result.polys}`,
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

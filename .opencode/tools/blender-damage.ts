@@ -57,7 +57,7 @@ export default tool({
       if (result.dents_attempted !== undefined)
         lines.push(`dents: ${result.dents_attempted} attempted, ${result.dents_applied} applied`)
       lines.push("Run blender-gate to verify manifold/watertight after damage.")
-      return lines.join("\n")
+      return { output: lines.join("\n"), metadata: { blenderSnapshot: result.snapshot ?? null } }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

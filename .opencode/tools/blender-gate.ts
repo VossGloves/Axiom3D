@@ -16,6 +16,7 @@ export type GateReport = {
   blender_version: string
   duration_ms: number
   stages: GateStage[]
+  snapshot?: string
 }
 
 export default tool({
@@ -51,7 +52,10 @@ export default tool({
       if (args.asset) {
         await recordGate(args.asset, report as unknown as Record<string, unknown>).catch(() => {})
       }
-      return JSON.stringify(report, null, 2)
+      return {
+        output: JSON.stringify(report, null, 2),
+        metadata: { blenderSnapshot: report.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

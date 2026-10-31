@@ -13,6 +13,7 @@ type BooleanResult = {
   polys_before: number
   polys_after: number
   dimensions: number[]
+  snapshot?: string
 }
 
 type BatchResult = {
@@ -20,6 +21,7 @@ type BatchResult = {
   operations: Array<Record<string, unknown>>
   verts: number
   polys: number
+  snapshot?: string
 }
 
 export default tool({
@@ -57,12 +59,15 @@ export default tool({
           { target: args.target, operations: args.operations, solver: args.solver },
           120_000,
         )
-        return [
-          `status: ok`,
-          `batch boolean on "${result.target}" — ${result.operations.length} ops`,
-          `final verts: ${result.verts}  polys: ${result.polys}`,
-          `ops: ${JSON.stringify(result.operations)}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `batch boolean on "${result.target}" — ${result.operations.length} ops`,
+            `final verts: ${result.verts}  polys: ${result.polys}`,
+            `ops: ${JSON.stringify(result.operations)}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       const result = await request<BooleanResult>(
         "run_boolean",
@@ -75,14 +80,17 @@ export default tool({
         },
         60_000,
       )
-      return [
-        `status: ok`,
-        `${result.operation} ${result.target} ← ${result.cutter} (${result.solver})`,
-        `applied: ${result.applied}  cutter_removed: ${result.cutter_removed}`,
-        `verts: ${result.verts_before} → ${result.verts_after}  polys: ${result.polys_before} → ${result.polys_after}`,
-        `dimensions: ${JSON.stringify(result.dimensions)}`,
-        "Run blender-gate to verify manifold/watertight after boolean.",
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `${result.operation} ${result.target} ← ${result.cutter} (${result.solver})`,
+          `applied: ${result.applied}  cutter_removed: ${result.cutter_removed}`,
+          `verts: ${result.verts_before} → ${result.verts_after}  polys: ${result.polys_before} → ${result.polys_after}`,
+          `dimensions: ${JSON.stringify(result.dimensions)}`,
+          "Run blender-gate to verify manifold/watertight after boolean.",
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

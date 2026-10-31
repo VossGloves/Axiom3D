@@ -8,6 +8,7 @@ type PrimitiveResult = {
   polys: number
   dimensions: number[]
   location: number[]
+  snapshot?: string
 }
 
 export default tool({
@@ -39,14 +40,17 @@ export default tool({
   async execute(args) {
     try {
       const result = await request<PrimitiveResult>("create_primitive", args as Record<string, unknown>, 60_000)
-      return [
-        `status: ok`,
-        `created ${args.kind} as "${result.name}"`,
-        `verts: ${result.verts}  polys: ${result.polys}`,
-        `dimensions: ${JSON.stringify(result.dimensions)}`,
-        `location: ${JSON.stringify(result.location)}`,
-        "Run blender-validate or blender-gate to confirm it is clean before composing.",
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `created ${args.kind} as "${result.name}"`,
+          `verts: ${result.verts}  polys: ${result.polys}`,
+          `dimensions: ${JSON.stringify(result.dimensions)}`,
+          `location: ${JSON.stringify(result.location)}`,
+          "Run blender-validate or blender-gate to confirm it is clean before composing.",
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

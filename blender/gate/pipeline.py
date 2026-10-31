@@ -63,7 +63,7 @@ def run_gate(code, params):
                 detail={"stdout": exc.result["stdout"], "traceback": error.get("traceback", "")},
             )
         )
-        return _report(stages, started)
+        return _report(stages, started, snapshot=exc.result.get("snapshot"))
     except Exception as exc:  # noqa: BLE001 - any exec failure is stage evidence, never a crash
         stages.append(
             _stage(
@@ -85,6 +85,7 @@ def run_gate(code, params):
         )
     )
 
+    snapshot = exec_result.get("snapshot")
     post_exec = cmd_snapshot({"label": "gate"})
 
     try:
@@ -97,7 +98,7 @@ def run_gate(code, params):
                 issues=[{"object": "<scene>", "issue": "geometry_check_failed", "detail": str(exc), "severity": "error"}],
             )
         )
-        return _report(stages, started)
+        return _report(stages, started, snapshot=snapshot)
     if geometry["mesh_count"] == 0:
         geometry["issues"].append(
             {"object": "<scene>", "issue": "no_mesh_objects", "detail": "script produced no mesh objects", "severity": "error"}
@@ -115,7 +116,7 @@ def run_gate(code, params):
                 issues=[{"object": "<scene>", "issue": "quality_check_failed", "detail": str(exc), "severity": "error"}],
             )
         )
-        return _report(stages, started)
+        return _report(stages, started, snapshot=snapshot)
     if quality.get("skipped"):
         stages.append({"name": "mesh_quality", "passed": True, "skipped": True, "detail": {"reason": quality["reason"]}})
     else:
@@ -156,7 +157,7 @@ def run_gate(code, params):
                 )
             )
 
-    return _report(stages, started)
+    return _report(stages, started, snapshot=snapshot)
 
 
 def _roundtrip_stage(snapshot_path):
@@ -278,12 +279,15 @@ def _stage(name, passed, issues=None, detail=None):
     return stage
 
 
-def _report(stages, started):
+def _report(stages, started, snapshot=None):
     failed = next((stage["name"] for stage in stages if not stage["passed"]), None)
-    return {
+    report = {
         "passed": failed is None,
         "failed_stage": failed,
         "blender_version": bpy.app.version_string,
         "duration_ms": int((time.monotonic() - started) * 1000),
         "stages": stages,
     }
+    if snapshot:
+        report["snapshot"] = snapshot
+    return report

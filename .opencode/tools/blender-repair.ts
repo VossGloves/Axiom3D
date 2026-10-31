@@ -31,7 +31,10 @@ export default tool({
           await recordFixOutcome(entry.issue, entry.action ?? "auto", true).catch(() => {})
         }
       }
-      return JSON.stringify(result, null, 2)
+      return {
+        output: JSON.stringify(result, null, 2),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

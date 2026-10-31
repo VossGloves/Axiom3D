@@ -1,5 +1,5 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { Effect, Layer, Context, Schema } from "effect"
+import { Effect, Layer, Context, Schema, Cause } from "effect"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Snapshot } from "../snapshot"
@@ -9,6 +9,7 @@ import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID, PartID } from "./schema"
 import { SessionRunState } from "./run-state"
 import { SessionSummary } from "./summary"
+import { Plugin } from "@/plugin"
 
 export const RevertInput = Schema.Struct({
   sessionID: SessionID,
@@ -34,6 +35,12 @@ const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const summary = yield* SessionSummary.Service
     const state = yield* SessionRunState.Service
+    const plugin = yield* Plugin.Service
+
+    const notifyRevert = (input: { sessionID: string; phase: "revert" | "unrevert" | "cleanup"; blenderSnapshot?: string }) =>
+      plugin.trigger("session.revert", input, {}).pipe(
+        Effect.catchCause((cause) => Effect.logError("session.revert hook failed", { cause: Cause.pretty(cause) })),
+      )
 
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
       yield* state.assertNotBusy(input.sessionID)
@@ -42,6 +49,7 @@ const layer = Layer.effect(
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
 
       let rev: Session.Info["revert"]
+      let blenderSnapshot: string | undefined
       const patches: Snapshot.Patch[] = []
       for (const msg of all) {
         if (msg.info.role === "user") lastUser = msg.info
@@ -49,6 +57,10 @@ const layer = Layer.effect(
         for (const part of msg.parts) {
           if (rev) {
             if (part.type === "patch") patches.push(part)
+            if (!blenderSnapshot && part.type === "tool" && part.state.status === "completed") {
+              const snapshot = part.state.metadata?.blenderSnapshot
+              if (typeof snapshot === "string") blenderSnapshot = snapshot
+            }
             continue
           }
 
@@ -85,6 +97,7 @@ const layer = Layer.effect(
           files: diffs.length,
         },
       })
+      yield* notifyRevert({ sessionID: input.sessionID, phase: "revert", blenderSnapshot })
       return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
     })
 
@@ -95,6 +108,7 @@ const layer = Layer.effect(
       if (!session.revert) return session
       if (session.revert.snapshot) yield* snap.restore(session.revert.snapshot)
       yield* sessions.clearRevert(input.sessionID)
+      yield* notifyRevert({ sessionID: input.sessionID, phase: "unrevert" })
       return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
     })
 
@@ -121,6 +135,7 @@ const layer = Layer.effect(
         }
       }
       yield* sessions.clearRevert(sessionID)
+      yield* notifyRevert({ sessionID, phase: "cleanup" })
     })
 
     return Service.of({ revert, unrevert, cleanup })
@@ -130,7 +145,15 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Session.node, Snapshot.node, Storage.node, EventV2Bridge.node, SessionSummary.node, SessionRunState.node],
+  deps: [
+    Session.node,
+    Snapshot.node,
+    Storage.node,
+    EventV2Bridge.node,
+    SessionSummary.node,
+    SessionRunState.node,
+    Plugin.node,
+  ],
 })
 
 export * as SessionRevert from "./revert"

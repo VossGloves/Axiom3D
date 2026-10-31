@@ -10,6 +10,7 @@ type SdfResult = {
   bounds_expanded?: boolean
   bounds_clipped?: boolean
   resolution_reduced?: boolean
+  snapshot?: string
 }
 
 type SdfStatus = {
@@ -68,14 +69,17 @@ export default tool({
         result.resolution_reduced ? `note: resolution auto-reduced to ${result.resolution} for the 100k vertex budget` : "",
         result.verts > 90_000 ? "near vertex budget (100000) — gate may fail; lower resolution if so" : "",
       ].filter(Boolean)
-      return [
-        `status: ok`,
-        `created ${result.name}  verts: ${result.verts}  polys: ${result.polys}`,
-        `dimensions: ${JSON.stringify(result.dimensions)}  resolution: ${result.resolution} cells/m`,
-        `bounds: ${JSON.stringify(result.bounds_min)} -> ${JSON.stringify(result.bounds_max)}`,
-        ...notes,
-        "Run blender-validate or blender-gate to confirm it is clean before composing.",
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `created ${result.name}  verts: ${result.verts}  polys: ${result.polys}`,
+          `dimensions: ${JSON.stringify(result.dimensions)}  resolution: ${result.resolution} cells/m`,
+          `bounds: ${JSON.stringify(result.bounds_min)} -> ${JSON.stringify(result.bounds_max)}`,
+          ...notes,
+          "Run blender-validate or blender-gate to confirm it is clean before composing.",
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

@@ -29,7 +29,13 @@ export default tool({
     }
 
     try {
-      const result = await request<{ action: string; file: string; handoff?: boolean; objects?: number }>(
+      const result = await request<{
+        action: string
+        file: string
+        handoff?: boolean
+        objects?: number
+        snapshot?: string
+      }>(
         "open_file",
         { path: target, mode: args.mode },
         70_000,
@@ -38,10 +44,16 @@ export default tool({
         await status()
         const summary = await request<{ file: string; objects: Record<string, number> }>("query", { kind: "summary" }, 30_000)
         const meshCount = summary.objects.MESH ?? 0
-        return `Opened ${target}\nfile: ${summary.file}\nmesh_objects: ${meshCount}`
+        return {
+          output: `Opened ${target}\nfile: ${summary.file}\nmesh_objects: ${meshCount}`,
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       const action = isOpen ? "Opened" : "Imported"
-      return `${action} ${result.file}\nobjects: ${result.objects ?? 0}`
+      return {
+        output: `${action} ${result.file}\nobjects: ${result.objects ?? 0}`,
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }

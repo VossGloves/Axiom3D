@@ -13,6 +13,7 @@ type AssemblyResult = {
   tagged_count?: number
   assemblies?: Array<Record<string, unknown>>
   loose_assembly_members?: string[]
+  snapshot?: string
 }
 
 export default tool({
@@ -38,19 +39,25 @@ export default tool({
       }
       if (args.action === "dissolve") {
         const result = await request<AssemblyResult>("dissolve_assembly", { name: args.name }, 30_000)
-        return [
-          `status: ok`,
-          `dissolved assembly "${result.dissolved}"`,
-          `released: ${result.released?.join(", ")}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `dissolved assembly "${result.dissolved}"`,
+            `released: ${result.released?.join(", ")}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       if (args.action === "mark") {
         const result = await request<AssemblyResult>("mark_assembly", { members: args.members }, 30_000)
-        return [
-          `status: ok`,
-          `tagged ${result.tagged_count} objects as assembly members`,
-          `tagged: ${result.tagged?.join(", ")}`,
-        ].join("\n")
+        return {
+          output: [
+            `status: ok`,
+            `tagged ${result.tagged_count} objects as assembly members`,
+            `tagged: ${result.tagged?.join(", ")}`,
+          ].join("\n"),
+          metadata: { blenderSnapshot: result.snapshot ?? null },
+        }
       }
       // create
       const result = await request<AssemblyResult>(
@@ -58,12 +65,15 @@ export default tool({
         { name: args.name, members: args.members, location: args.location },
         30_000,
       )
-      return [
-        `status: ok`,
-        `created assembly "${result.assembly}" with ${result.member_count} members`,
-        `members: ${result.members?.join(", ")}`,
-        `location: ${JSON.stringify(result.location)}`,
-      ].join("\n")
+      return {
+        output: [
+          `status: ok`,
+          `created assembly "${result.assembly}" with ${result.member_count} members`,
+          `members: ${result.members?.join(", ")}`,
+          `location: ${JSON.stringify(result.location)}`,
+        ].join("\n"),
+        metadata: { blenderSnapshot: result.snapshot ?? null },
+      }
     } catch (error) {
       return `ERROR: ${error instanceof Error ? error.message : String(error)}`
     }
