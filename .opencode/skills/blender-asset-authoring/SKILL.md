@@ -24,10 +24,14 @@ One-pass build — the raw prompt is the brief:
 3. **Plan UI** — `asset-plan` + `axiom3d-progress` with a 3-step plan
    (Build → Gate → Done).
 4. **Build** — ONE `axiom3d-modeller` delegation covering the WHOLE asset as a
-   single script → `.axiom3d/scripts/<asset>/build.py`. Create the folder first:
-   `mkdir -p .axiom3d/scripts/<asset_name>`. No chunk plan, no chunk folders.
-   Run the script through `blender-gate` (render:false for speed). Fix every
-   failure INLINE in this session — never fan out `task` fix loops.
+   single script → `.axiom3d/scripts/<asset>/build.py`. Use the `write-script`
+   tool to create the file (never embed the full script in a `blender-exec`
+   code arg). No chunk plan, no chunk folders. Run the script through
+   `blender-gate` ONCE (render:true for final verify; render:false only for
+   fast syntax probes). Fix every failure INLINE in this session — never fan
+   out `task` fix loops. Do NOT re-run gate on small tweaks; use
+   `blender-exec` with `exec(open(path).read())` for quick probes, and save
+   one full gate for the final verify.
 5. **Compose** — build from `blender-primitive` (base shapes), `blender-sdf`
    (organic forms that must read as one skin: smooth blend unions/differences,
    shell, twirl/taper/attract warps), `blender-curve`
@@ -43,11 +47,13 @@ One-pass build — the raw prompt is the brief:
    `ops.scatter_details()` for bolts/brackets; `ops.scatter_edge_bolts()`
    for industrial fasteners; `blender-damage` for weathering/wear when the brief
    calls for aged/distressed surfaces.
-7. **Verify** — `blender-gate` runs the full staged pipeline. Fix every failed
-   stage and re-run until `passed`. Route failures per the routing table below.
-   `blender-validate` re-checks without executing; `blender-exec` is for
-   scratch/read-only scripts. Pass `asset: <name>` on every gate call to
-   record the result into memory.
+7. **Verify** — `blender-gate` runs the full staged pipeline ONCE per build
+   (render:true). Fix every failed stage and re-run ONLY if the fix changed
+   geometry materially — for small tweaks use `blender-exec` probe. Route
+   failures per the routing table below. `blender-validate` re-checks without
+   executing; `blender-exec` is for scratch/read-only scripts. Pass
+   `asset: <name>` on every gate call to record the result into memory.
+   `blender-docs` results are cached per query — repeat lookups are instant.
 8. **Repair** — scene-stage failures (geometry/mesh_quality) go to `blender-repair`
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
@@ -162,5 +168,6 @@ Issue vocabulary (fix all errors):
 
 - conventions: `docs/axiom3d/conventions.md`
 - pattern cookbook: `blender/corpus/examples/` (validated by
-  `blender/corpus/validate_patterns.py`)
+  `blender/corpus/validate_patterns.py`) — API patterns only, NEVER copy
+  asset designs from here; every generation is fresh
 - harness plan/architecture: `PLAN.md`
