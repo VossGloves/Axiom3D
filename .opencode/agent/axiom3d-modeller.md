@@ -28,6 +28,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
+- `blender-diff` — diff live scene against stored gate fingerprint
 - `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -56,6 +57,7 @@ exist — call them directly:
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
+| `blender-diff` | Diff live scene vs stored gate fingerprint (manual-edit detection) |
 | `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -171,6 +173,12 @@ when no library entry fits.
 
 ## Rules
 
+- **Patch scripts (refine on an existing scene):** the scene may contain manual
+  edits made by the user in the Blender GUI — they must survive. Patch scripts
+  create new objects and modify ONLY the targets the director names. Never
+  clear the scene (`_clear_scene()`, `read_factory_settings`, deleting all
+  objects), never delete objects you did not create in the same script, never
+  re-run or rewrite the whole `build.py` for a refine.
 - 1 unit = 1 meter; origin at asset base; nothing floating or sunk.
 - Contact placement: for faces that must touch, compute centers from half-extents
   (`center = face ± (half_a + half_b)`) and comment the arithmetic. Never freehand

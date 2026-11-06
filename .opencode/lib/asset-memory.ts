@@ -69,6 +69,7 @@ type AssetRecord = {
   params?: Record<string, number>
   gate?: GateSummary
   history?: GateSummary[]
+  fingerprint?: { objects: Record<string, Record<string, unknown>> } | null
 }
 
 export async function upsertAsset(name: string, patch: Partial<AssetRecord>): Promise<AssetRecord> {
@@ -96,7 +97,11 @@ export async function recordGate(asset: string, report: Record<string, unknown>)
   const assets = await load<Record<string, AssetRecord>>(files().assets)
   const record = assets[asset] ?? {}
   const history = [summary, ...(record.history ?? [])].slice(0, HISTORY_CAP)
-  assets[asset] = { ...record, updated_at: summary.at, gate: summary, history }
+  // Baseline for manual-edit detection: only a passing gate re-anchors the
+  // fingerprint; a failed run keeps the last known-good scene state.
+  const fingerprint =
+    summary.passed && report.fingerprint ? report.fingerprint : record.fingerprint
+  assets[asset] = { ...record, updated_at: summary.at, gate: summary, history, fingerprint }
   await save(files().assets, assets)
 }
 

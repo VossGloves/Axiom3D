@@ -363,7 +363,7 @@ async function ensureUnlocked(): Promise<PortInfo> {
   // Attach to live session if port file alive and mode is gui or auto-detect finds gui
   if (existing && (await pingableWithRetry(existing.port))) {
     rememberGui(existing)
-    if (mode === "gui" || existing.mode === "gui") {
+    if (mode === "gui" || (mode !== "headless" && existing.mode === "gui")) {
       // Prefer the live GUI session; shut down any headless fallback we spawned.
       if (subprocess && existing.mode === "gui") {
         await logTelemetry("client.ensure.prefer_gui", {
@@ -375,8 +375,10 @@ async function ensureUnlocked(): Promise<PortInfo> {
       }
       return existing
     }
-    // Headless mode already running; reuse it
-    if (mode !== "headless") return existing
+    // A running headless worker is reusable — including when headless is forced
+    // and the port file still points at the GUI session (fall through below to
+    // spawn a dedicated headless worker without touching the GUI process).
+    if (existing.mode !== "gui") return existing
   }
 
   const guiCandidate = existing?.mode === "gui" ? existing : rememberedGui
@@ -472,8 +474,10 @@ export async function restart(): Promise<void> {
 
 async function restartUnlocked(): Promise<void> {
   const previous = await portInfo()
-  // Never kill a GUI session — user owns that process
-  if (previous?.mode === "gui") {
+  const mode = process.env.AXIOM3D_BLENDER_MODE
+  // Never kill a GUI session — user owns that process. Forcing headless skips
+  // the refusal so tests/tools can bring up a separate worker beside a live GUI.
+  if (previous?.mode === "gui" && mode !== "headless") {
     await logTelemetry("client.restart.refused", {
       reason: "gui_session",
       ...portFields(previous),
@@ -483,7 +487,7 @@ async function restartUnlocked(): Promise<void> {
         "Restore manually via blender-checkpoint or restart Blender + reload addon.",
     )
   }
-  const snapshot = previous?.last_snapshot ?? null
+  const snapshot = previous?.mode === "gui" ? null : previous?.last_snapshot ?? null
   await logTelemetry("client.restart.begin", {
     snapshot,
     ...portFields(previous),
@@ -492,7 +496,7 @@ async function restartUnlocked(): Promise<void> {
     subprocess.kill()
     subprocess = null
   }
-  if (previous) tryKill(previous.pid)
+  if (previous && previous.mode !== "gui") tryKill(previous.pid)
   await sleep(500)
   await spawnWorker()
   if (snapshot) {

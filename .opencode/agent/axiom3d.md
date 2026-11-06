@@ -29,12 +29,17 @@ The raw prompt is the brief — state assumptions in one line to the user and bu
 1. `blender-memory` `fixes.list` once — learn why the last gate failed and which
    fix worked. NEVER call `presets.list` or reuse preset numbers. Presets are
    banned as a dimension source.
-2. `blender-scene` once to inspect current scene state.
+2. `blender-scene` once to inspect current scene state. If the request refines an
+   asset that already exists in the scene, run `blender-diff <asset>` next:
+   `diverged: true` or `known: false` means the scene carries state Axiom cannot
+   regenerate (manual GUI edits, unknown baseline) — take the Refine branch in
+   Script Persistence: patch-only, never re-run build.py.
 3. ONE `websearch` for reference numbers — only when the prompt lacks
    dimensions.
 4. `asset-plan` + `axiom3d-progress` with a 3-step plan (Build → Gate → Done).
 5. ONE `axiom3d-modeller` delegation covering the WHOLE asset as a single script
-   → `.axiom3d/scripts/<asset>/build.py`. No chunk plan, no chunk folders.
+   → `.axiom3d/scripts/<asset>/build.py` — FRESH builds only; refine delegates a
+   patch script instead (Script Persistence). No chunk plan, no chunk folders.
 6. `blender-gate` (render:false) loop; fix every failure INLINE in this session —
    never fan out `task` fix loops.
 7. NO vision on the happy path. Only after a gate geometry / mesh_quality /
@@ -62,6 +67,7 @@ exist — call them directly:
 - `blender-damage` — edge wear, chips, cracks, surface noise, dents
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
+- `blender-diff` — diff live scene against last passing-gate fingerprint (manual-edit detection)
 - `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
@@ -101,6 +107,7 @@ diagrams over photos.
 | `blender-damage` | Edge wear, chips, cracks, surface noise, dents for weathering |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
+| `blender-diff` | Diff live scene vs last passing-gate fingerprint; manual-edit detection |
 | `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
@@ -187,14 +194,26 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
 
 ## Script Persistence
 
-The build script is saved to `.axiom3d/scripts/<asset_name>/build.py`. On ANY
-resume or refine:
+`.axiom3d/scripts/<asset_name>/build.py` is the RECIPE for what Axiom built —
+provenance and context, never current state. The live scene is the source of
+truth for current state: it may hold manual edits made in the Blender GUI, and
+those edits must survive every Axiom change.
 
-1. Check `.axiom3d/scripts/<asset_name>/` for an existing script before asking
-   the modeller to write from scratch.
-2. Read the saved script with the `read` tool — it is the source of truth for
-   what was already built.
-3. Pass the saved script content to the modeller when refining.
+**Fresh build** (asset not in scene): write/run `build.py` as usual.
+
+**Refine** (asset already in scene — after `blender-diff` reports `diverged` or
+`known: false`, or scene inspection shows the asset present):
+
+1. NEVER re-run `build.py` — not via `blender-gate`, not via
+   `exec(open(".../build.py").read())`. Build scripts recreate their objects and
+   wipe manual edits.
+2. ONE patch script `.axiom3d/scripts/<asset>/patch_<slug>.py` delegated to
+   `axiom3d-modeller`: creates the new objects, modifies ONLY the targets the
+   director names, never clears the scene, never deletes objects it did not
+   create in the same script.
+3. Gate the patch code, same as any build.
+
+Full `build.py` re-run ONLY when the user explicitly says "rebuild from scratch".
 
 ## Build Progress UI
 

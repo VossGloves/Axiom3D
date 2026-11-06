@@ -228,6 +228,27 @@ GN node-building via `blender-exec` remains allowed when confirmed via `blender-
   session. Requires GUI mode; errors if headless. AI prefers this over export+manual
   import when session attached.
 
+### Phase 8 — Manual-edit preservation (fingerprint)
+- [x] `blender/fingerprint.py`: `compute()` = per-object identity (type, world
+  transform, bounds, vertex-coord md5, materials); `diff()` = added/removed/changed.
+- [x] Gate embeds `fingerprint` in every report (`_report`); `recordGate` stores it
+  in `.axiom3d/memory/assets.json` only on PASS (last known-good baseline).
+- [x] Worker command `fingerprint` (read-only) + optional `stored` param → server-side diff.
+- [x] `blender-diff` tool (`.opencode/tools/blender-diff.ts`): live scene vs stored
+  baseline → `{known, diverged, added, removed, changed}`.
+- [x] Prompt rules (axiom3d.md Script Persistence, SKILL.md Refine section,
+  axiom3d-modeller.md patch rules): live scene = source of truth; refine =
+  patch-only script; `build.py` re-run only on explicit "rebuild from scratch";
+  scene-wide `_clear_scene()` banned in new scripts.
+- [x] Client `AXIOM3D_BLENDER_MODE=headless` now actually forces a dedicated
+  headless worker beside a live GUI session (was: preferred GUI + respawned the
+  worker per call); `restart()` with mode=headless no longer refuses or kills the
+  GUI pid. Lets the test suite run beside an open Blender.
+- [x] Tests: `blender/tests/fingerprint.test.ts` (8/8 — stability, move/add/remove/
+  vertex-edit detection, gate baseline storage, tool outputs).
+- Known pre-existing red: 16 tests in modify/tools/sdf/corpus expect string tool
+  returns; tools return `{output, metadata}` objects (predates this phase).
+
 ## Verification
 
 - `bun test --parallel=1 --no-isolate` from `blender/` (spawns a real headless Blender;

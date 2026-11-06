@@ -18,20 +18,23 @@ One-pass build — the raw prompt is the brief:
 1. **Inspect memory + scene** — `blender-memory` `fixes.list` once (learn why
    the last gate failed and which fix worked; NEVER `presets.list` — presets are
    banned as a dimension source). `blender-scene` once before any assumption
-   about current scene state.
+   about current scene state. Refining an asset already in the scene? Run
+   `blender-diff <asset>` too: `diverged` or `known:false` = live scene holds
+   manual/unknown state → Refine branch below, scene is source of truth.
 2. **Reference numbers** — ONE `websearch` for dimensions only when the prompt
    lacks them. State assumptions in one line to the user and build.
 3. **Plan UI** — `asset-plan` + `axiom3d-progress` with a 3-step plan
    (Build → Gate → Done).
 4. **Build** — ONE `axiom3d-modeller` delegation covering the WHOLE asset as a
-   single script → `.axiom3d/scripts/<asset>/build.py`. Use the `write-script`
-   tool to create the file (never embed the full script in a `blender-exec`
-   code arg). No chunk plan, no chunk folders. Run the script through
-   `blender-gate` ONCE (render:true for final verify; render:false only for
-   fast syntax probes). Fix every failure INLINE in this session — never fan
-   out `task` fix loops. Do NOT re-run gate on small tweaks; use
-   `blender-exec` with `exec(open(path).read())` for quick probes, and save
-   one full gate for the final verify.
+   single script → `.axiom3d/scripts/<asset>/build.py` — FRESH builds only.
+   Use the `write-script` tool to create the file (never embed the full script
+   in a `blender-exec` code arg). No chunk plan, no chunk folders. Run the
+   script through `blender-gate` ONCE (render:true for final verify;
+   render:false only for fast syntax probes). Fix every failure INLINE in this
+   session — never fan out `task` fix loops. Do NOT re-run gate on small tweaks;
+   use targeted `blender-exec` edits on the named objects for quick probes, and
+   save one full gate for the final verify. NEVER re-run the whole build script
+   as a probe — it recreates its objects and wipes manual GUI edits.
 5. **Compose** — build from `blender-primitive` (base shapes), `blender-sdf`
    (organic forms that must read as one skin: smooth blend unions/differences,
    shell, twirl/taper/attract warps), `blender-curve`
@@ -67,6 +70,25 @@ One-pass build — the raw prompt is the brief:
    requested.
 10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
     attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
+
+## Refine (manual-edit preservation)
+
+The live scene may contain edits the user made by hand in the Blender GUI.
+Those edits survive only if nothing recreates their objects.
+
+- `build.py` is the recipe, never current state. While the asset exists in the
+  scene, NEVER re-run it (no `blender-gate` on it, no
+  `exec(open(".../build.py").read())`).
+- Refine = ONE patch script `.axiom3d/scripts/<asset>/patch_<slug>.py` (via
+  `axiom3d-modeller`): creates new objects, modifies ONLY director-named
+  targets, never clears the scene, never deletes objects it did not create in
+  the same script.
+- New scripts must not contain a scene-wide clear (`_clear_scene()`,
+  `read_factory_settings`, deleting every object). Scope cleanup to objects the
+  script itself owns.
+- Full rebuild only on an explicit user "rebuild from scratch".
+- A passing gate with `asset: <name>` re-anchors the stored fingerprint baseline
+  — keep passing it so the next session can detect edits.
 
 ## Memory
 
@@ -150,6 +172,7 @@ Issue vocabulary (fix all errors):
 - `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
 - `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
 - `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
+- `blender-diff` — live scene vs stored fingerprint from last passing gate; reports added/removed/changed objects (manual-edit detection, gate on refine)
 
 ## Blender 5.2 gotchas (verified, these drift across versions)
 

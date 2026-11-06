@@ -1,6 +1,6 @@
 """RPC command registry. Handlers never touch sockets; worker.py owns the transport
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
-the pump), exec, snapshot, restore, reset, query, render, vision, export, validate,
+the pump), exec, snapshot, restore, reset, query, fingerprint, render, vision, export, validate,
 gate, docs, repair, materials, primitives, curves, booleans, assemblies, damage,
 modify, sdf."""
 
@@ -31,6 +31,7 @@ COMMANDS = {
     "open_file": session.cmd_open_file,
     "reset": session.cmd_reset,
     "query": session.cmd_query,
+    "fingerprint": session.cmd_fingerprint,
     "render": render.cmd_render,
     "vision": vision.cmd_vision,
     "export": export.cmd_export,

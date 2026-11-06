@@ -9,6 +9,7 @@ import traceback
 
 import bpy
 
+from fingerprint import compute as scene_fingerprint, diff as fingerprint_diff
 from geom.checks import DEFAULT_POLY_BUDGET, scene_geometry_snapshot
 
 from rpc.base import (
@@ -214,6 +215,15 @@ def cmd_exec(params):
     }
     if error:
         raise ExecScriptError(result)
+    return result
+
+
+def cmd_fingerprint(params):
+    live = scene_fingerprint()
+    stored = params.get("stored")
+    result = {"fingerprint": live}
+    if isinstance(stored, dict) and stored.get("objects"):
+        result["diff"] = fingerprint_diff(stored, live)
     return result
 
 

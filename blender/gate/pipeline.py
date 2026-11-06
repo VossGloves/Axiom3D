@@ -22,6 +22,7 @@ import bpy
 from mathutils import Vector
 
 from api_index import load_or_build
+from fingerprint import compute as scene_fingerprint
 from gate.api_check import check_tree
 from geom.checks import DEFAULT_POLY_BUDGET, mesh_quality_report, scene_geometry_report
 from rpc.base import ExecScriptError, STATE, log_telemetry
@@ -290,4 +291,10 @@ def _report(stages, started, snapshot=None):
     }
     if snapshot:
         report["snapshot"] = snapshot
+    # Baseline for manual-edit detection (fingerprint.diff). Failure to digest
+    # must never kill the report — the stages carry the evidence.
+    try:
+        report["fingerprint"] = scene_fingerprint()
+    except Exception:  # noqa: BLE001 - evidence-only field
+        report["fingerprint"] = None
     return report
