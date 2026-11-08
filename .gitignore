@@ -45,7 +45,7 @@ blender/vendor/
 __pycache__/
 
 # Axiom3D 3D assets — local only, never commit
-assets/
+/assets/
 packages/opencode/assets/
 *.blend
 *.glb
