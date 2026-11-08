@@ -12,14 +12,15 @@ def cmd_list_materials(params):
 def cmd_apply_material(params):
     name = params.get("name")
     key = params.get("material")
+    color = params.get("color")
     if not name or not key:
         raise WorkerError("BadRequest", "apply_material requires params.name and params.material")
     obj = bpy.data.objects.get(name)
     if not obj or obj.type != "MESH":
         raise WorkerError("NotFound", f"mesh object not found: {name!r}")
     try:
-        mat_name = apply_material(obj, key)
-    except KeyError as exc:
+        mat_name = apply_material(obj, key, color=color)
+    except (KeyError, ValueError) as exc:
         raise WorkerError("BadRequest", str(exc))
     return {
         "name": obj.name,

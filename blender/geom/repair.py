@@ -113,6 +113,8 @@ def _repair_object(obj, wanted, fixed, skipped):
     for code in ("degenerate", "over_budget"):
         if wants(code) and _detect_skipped(obj, code):
             log_skipped(code, "design-level issue; fix by editing the source script, not the mesh")
+    if wants("missing_material") and "uncolored" not in obj and not any(obj.data.materials):
+        log_skipped("missing_material", "design-level issue; assign via blender-material or set obj['uncolored']=True")
     if wanted is not None:
         for code in ("self_intersection", "object_intersection", "floating_component"):
             if code in wanted:

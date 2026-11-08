@@ -163,6 +163,10 @@ const table = sqliteTable("session", {
 - Subagents (`axiom3d-modeller`, `axiom3d-repair`, etc.) are leaf agents: they
   must not call `task` to delegate further. One Blender command at a time, one
   fix attempt at a time.
+- Assets are colored by default: gate/validate fail meshes with no material
+  (`missing_material`) unless `obj["uncolored"] = True` or `require_material:
+  false` is passed. `blender-material` apply takes an optional `color`
+  (#rrggbb) arg that tints a library material for multi-color assets.
 
 ## V2 Session Core
 

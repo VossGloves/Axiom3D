@@ -18,7 +18,8 @@ def cmd_repair(params):
         raise WorkerError("BadRequest", "params.issues must be a list of issue codes")
     snapshot = cmd_snapshot({"label": "auto-repair"})
     fixed, skipped = repair_scene(issues)
-    geo = scene_geometry_report(DEFAULT_POLY_BUDGET)
+    require_material = bool(params.get("require_material", True))
+    geo = scene_geometry_report(DEFAULT_POLY_BUDGET, require_material=require_material)
     quality = mesh_quality_report()
     residual = geo["issues"] + quality["issues"]
     return {

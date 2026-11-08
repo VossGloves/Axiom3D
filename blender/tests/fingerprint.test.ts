@@ -56,8 +56,10 @@ describe("fingerprint command", () => {
       {
         code: `bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
 bpy.context.active_object.name = "fp_alpha"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("fp_paint_a"))
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(5, 0, 0.5))
 bpy.context.active_object.name = "fp_beta"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("fp_paint_b"))
 print("two cubes")`,
         timeout: 30,
       },
@@ -87,6 +89,7 @@ print("moved")`, timeout: 30 },
       {
         code: `bpy.ops.mesh.primitive_cube_add(size=1.0, location=(10, 0, 0.5))
 bpy.context.active_object.name = "fp_gamma"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("fp_paint_c"))
 bpy.data.objects.remove(bpy.data.objects["fp_beta"], do_unlink=True)
 print("added gamma, removed beta")`,
         timeout: 30,
@@ -129,6 +132,7 @@ describe("gate + memory baseline", () => {
       {
         code: `bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 6, 0.5))
 bpy.context.active_object.name = "fp_gate"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("fp_paint"))
 print("gate cube")`,
         timeout: 120,
         render: false,

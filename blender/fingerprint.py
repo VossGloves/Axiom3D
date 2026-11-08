@@ -27,7 +27,7 @@ def _mesh_fields(obj):
         coords = np.empty(count * 3, dtype=np.float32)
         me.vertices.foreach_get("co", coords)
         digest.update(np.round(coords, ROUND).tobytes())
-    digest.update(",".join(sorted(slot.material.name for slot in me.materials if slot.material)).encode())
+    digest.update(",".join(sorted(m.name for m in me.materials if m)).encode())
     corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
     arr = np.array(corners)
     return {

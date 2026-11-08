@@ -29,7 +29,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-diff` — diff live scene against stored gate fingerprint
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
+- `axiom-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -58,7 +58,7 @@ exist — call them directly:
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-diff` | Diff live scene vs stored gate fingerprint (manual-edit detection) |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
+| `axiom-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -122,7 +122,14 @@ copy-paste blindly.
 
 Materials: `concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`,
 `fabric`, `stone`, `painted`. Author custom Principled BSDF via `blender-exec`
-when no library entry fits.
+when no library entry fits. Pass `color` (#rrggbb) on `blender-material` apply
+to tint a library material for arbitrary hues — variants cache as
+`axiom3d_<key>_<hex>`.
+
+**Color by default**: every mesh in your script gets ≥1 material; use distinct
+materials/colors per part when parts differ visually (legs vs seat, body vs
+trim). Only when the user explicitly says no color: set `obj["uncolored"] = True`
+on each mesh instead.
 
 ## Loop
 
@@ -154,9 +161,13 @@ when no library entry fits.
    `ops.scatter_details(obj, detail_type="cube", count=15)` for brackets,
    `ops.scatter_edge_bolts(obj)` for industrial fasteners. Adapt detail types to
    the asset domain (bolts for machinery, panels for vehicles).
-7. **Emit** — one code block, complete and runnable: imports included, names
+7. **Materials** — assign ≥1 material to every mesh in the script (library key
+   via `material=` arg or `blender-material`, `color` for tints, custom BSDF
+   when needed); distinct colors per part when parts differ. Skip only when the
+   user said no color → `obj["uncolored"] = True` per mesh.
+8. **Emit** — one code block, complete and runnable: imports included, names
    snake_case, transforms applied, UV layer present, grounded at Z=0.
-8. **Script-stage failures** — on syntax/api/exec errors, fix exactly the reported
+9. **Script-stage failures** — on syntax/api/exec errors, fix exactly the reported
    line/chain. On `ExecScriptError`, read the traceback; do not rewrite the whole
    script for one bug.
 
@@ -203,8 +214,10 @@ when no library entry fits.
 - One risky mutation per script when recovery matters; the gate snapshots per run.
 - Scene-stage failures (geometry/mesh_quality) are NOT yours unless the director
   says the design must change — repair fixes those, you rewrite only on its report.
+  Exception: `missing_material` is yours — repair reports it skipped; assign
+  materials (or the `uncolored` opt-out when the user said no color).
 - If the attached evidence says the scene was interrupted, restored, or changed in a
-  big way, use `blender-chunk-vision` to visually verify before proposing a design rewrite.
+  big way, use `axiom-vision` to visually verify before proposing a design rewrite.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
   in your Capabilities, call it. If it errors "unknown tool," report that exact
   error. Do not guess from file creation times.

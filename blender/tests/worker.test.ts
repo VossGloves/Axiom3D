@@ -38,6 +38,7 @@ describe("worker session", () => {
     const result = (await exec(`
 bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 1))
 bpy.context.active_object.name = "crate_test"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("crate_paint"))
 print("cube created")
 `)) as ExecResult
     expect(result.error).toBeNull()

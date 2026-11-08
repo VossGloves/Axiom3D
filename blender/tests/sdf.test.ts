@@ -25,6 +25,12 @@ const context: ToolContext = {
   async ask() {},
 }
 
+// mutating tools return {output, metadata} since the session-undo change;
+// assert against the text either way
+function text(result: unknown): string {
+  return typeof result === "string" ? result : (result as { output: string }).output
+}
+
 // Fused pebble blob: two spheres smooth-unioned — one skin, no boolean seams.
 const blobSpec = {
   kind: "csg",
@@ -80,7 +86,9 @@ describe("blender-sdf", () => {
   })
 
   test("builds fused organic blob", async () => {
-    const output = (await blenderSdf.execute({ spec: blobSpec, name: "sdf_blob", resolution: 32 }, context)) as string
+    const output = text(
+      await blenderSdf.execute({ spec: blobSpec, name: "sdf_blob", resolution: 32, material: "stone" }, context),
+    )
     expect(output).toContain("status: ok")
     expect(output).toContain("sdf_blob")
     const verts = Number(/verts: (\d+)/.exec(output)?.[1])
@@ -91,13 +99,16 @@ describe("blender-sdf", () => {
     // twirl displaces the ring ~2x beyond its static AABB and drops it in z;
     // bounds must cover the full deformed extent or the surface grazes the
     // box and MC emits cut slivers
-    const output = (await blenderSdf.execute({
-      spec: handleSpec,
-      name: "sdf_handle",
-      resolution: 32,
-      bounds_min: [-0.3, -0.8, -0.4],
-      bounds_max: [2.4, 0.8, 1.1],
-    }, context)) as string
+    const output = text(
+      await blenderSdf.execute({
+        spec: handleSpec,
+        name: "sdf_handle",
+        resolution: 32,
+        material: "metal",
+        bounds_min: [-0.3, -0.8, -0.4],
+        bounds_max: [2.4, 0.8, 1.1],
+      }, context),
+    )
     expect(output).toContain("status: ok")
     expect(output).toContain("sdf_handle")
     expect(output).not.toContain("WARN: surface touches bounds")
@@ -107,17 +118,22 @@ describe("blender-sdf", () => {
     // 4m tall tree-like trunk: thin cylinder r=0.05 must not vanish from MC.
     // Thin-geometry res bump keeps used_res high on the thin axis.
     // Cylinder (not cone): libfive cone_z returns empty mesh for thin aspect ratios.
+    // Placed at x=3, clear of sdf_blob (x<0.5) and sdf_handle (x<2) — the gate
+    // scene runs object_intersection against every pair.
     const thinSpec = {
       kind: "primitive",
       shape: "cylinder",
       params: { radius: 0.05, depth: 4 },
-      location: [0, 0, 2],
+      location: [3, 0, 2],
     }
-    const output = (await blenderSdf.execute({
-      spec: thinSpec,
-      name: "sdf_thin_trunk",
-      resolution: 32,
-    }, context)) as string
+    const output = text(
+      await blenderSdf.execute({
+        spec: thinSpec,
+        name: "sdf_thin_trunk",
+        resolution: 32,
+        material: "wood",
+      }, context),
+    )
     expect(output).toContain("status: ok")
     expect(output).toContain("sdf_thin_trunk")
     const verts = Number(/verts: (\d+)/.exec(output)?.[1])

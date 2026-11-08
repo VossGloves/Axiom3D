@@ -6,11 +6,18 @@ type ApplyResult = { name: string; material: string; slots: number; snapshot?: s
 
 export default tool({
   description:
-    "List or apply PBR materials from the library (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted). Use for surface assignment; author custom shaders via blender-exec when no library material fits.",
+    "List or apply PBR materials from the library (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted). Use for surface assignment; pass color to tint a library material (any hex, e.g. #ff8800) for multi-color assets; author custom shaders via blender-exec when no library material fits.",
   args: {
     action: tool.schema.string().describe("list | apply"),
     name: tool.schema.string().optional().describe("Target mesh object name (apply mode)"),
-    material: tool.schema.string().optional().describe("Material key (apply mode): concrete | steel | metal | plastic | wood | glass | rubber | fabric | stone | painted"),
+    material: tool.schema
+      .string()
+      .optional()
+      .describe("Material key (apply mode): concrete | steel | metal | plastic | wood | glass | rubber | fabric | stone | painted"),
+    color: tool.schema
+      .string()
+      .optional()
+      .describe("Optional tint (apply mode): #rrggbb — creates/reuses variant axiom3d_<key>_<hex>, keeps key's roughness/metallic"),
   },
   async execute(args) {
     try {
@@ -25,7 +32,7 @@ export default tool({
       }
       const result = await request<ApplyResult>(
         "apply_material",
-        { name: args.name, material: args.material },
+        { name: args.name, material: args.material, color: args.color },
         30_000,
       )
       return {

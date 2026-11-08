@@ -31,7 +31,7 @@ DEFAULT_NAME = re.compile(r"^(Cube|Sphere|Cylinder|Plane|Circle|Torus|Suzanne|Mo
 CLEAN_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-def scene_geometry_report(poly_budget=DEFAULT_POLY_BUDGET):
+def scene_geometry_report(poly_budget=DEFAULT_POLY_BUDGET, require_material=True):
     issues = []
     unit = bpy.context.scene.unit_settings
     if unit.scale_length != 1.0:
@@ -44,7 +44,7 @@ def scene_geometry_report(poly_budget=DEFAULT_POLY_BUDGET):
         )
     meshes = [obj for obj in bpy.data.objects if obj.type == "MESH"]
     for obj in meshes:
-        issues.extend(object_issues(obj, poly_budget))
+        issues.extend(object_issues(obj, poly_budget, require_material=require_material))
     return {
         "issues": issues,
         "passed": not any(issue["severity"] == "error" for issue in issues),
@@ -52,7 +52,7 @@ def scene_geometry_report(poly_budget=DEFAULT_POLY_BUDGET):
     }
 
 
-def object_issues(obj, poly_budget=DEFAULT_POLY_BUDGET):
+def object_issues(obj, poly_budget=DEFAULT_POLY_BUDGET, require_material=True):
     issues = []
 
     def add(issue, detail):
@@ -66,6 +66,11 @@ def object_issues(obj, poly_budget=DEFAULT_POLY_BUDGET):
         add("unapplied_scale", [round(v, 6) for v in obj.scale])
     if any(d < DEGENERATE_DIM for d in obj.dimensions):
         add("degenerate", [round(v, 6) for v in obj.dimensions])
+    if require_material and "uncolored" not in obj and not any(obj.data.materials):
+        add(
+            "missing_material",
+            "no material slots; assign via blender-material or mark obj['uncolored']=True when color is intentionally omitted",
+        )
 
     deps = bpy.context.evaluated_depsgraph_get()
     ev = obj.evaluated_get(deps)

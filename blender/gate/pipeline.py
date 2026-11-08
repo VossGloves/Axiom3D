@@ -36,6 +36,7 @@ def run_gate(code, params):
     started = time.monotonic()
     poly_budget = int(params.get("poly_budget", DEFAULT_POLY_BUDGET))
     volume_epsilon = float(params.get("volume_epsilon", 1e-6))
+    require_material = bool(params.get("require_material", True))
     stages = []
 
     try:
@@ -90,7 +91,7 @@ def run_gate(code, params):
     post_exec = cmd_snapshot({"label": "gate"})
 
     try:
-        geometry = scene_geometry_report(poly_budget)
+        geometry = scene_geometry_report(poly_budget, require_material=require_material)
     except Exception as exc:  # noqa: BLE001 - evidence stage, never crash
         stages.append(
             _stage(

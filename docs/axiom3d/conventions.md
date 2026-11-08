@@ -53,10 +53,21 @@ the issue vocabulary below as structured evidence.
 
 ## Materials
 
+- **Colored by default.** Every renderable mesh carries at least one material
+  unless the user explicitly asks for no color. Multi-part assets get distinct
+  materials/colors per part when the parts differ visually.
 - Pick from the library first via `blender-material` (concrete, steel, metal,
-  plastic, wood, glass, rubber, fabric, stone, painted); author procedural
-  ad-hoc material only when no library entry fits, and expose base
-  color/roughness/metallic as node group inputs.
+  plastic, wood, glass, rubber, fabric, stone, painted); pass `color` (e.g.
+  `#ff8800`) to tint a library material for arbitrary hues — repeated tints
+  reuse variant `axiom3d_<key>_<hex>`. Author procedural ad-hoc material only
+  when no library entry fits, and expose base color/roughness/metallic as node
+  group inputs.
+- Gate enforcement: a mesh with 0 material slots fails geometry with
+  `missing_material` (error). Opt-outs: mark `obj["uncolored"] = True` for an
+  intentionally colorless object, or pass `require_material: false` to
+  gate/validate when the whole asset is intentionally colorless.
+- `missing_material` is design-level for repair — auto-repair reports it
+  `skipped`; the modeller assigns the color.
 
 ## Export
 

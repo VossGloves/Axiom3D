@@ -1,3 +1,8 @@
+# id: organic-foliage
+# title: Organic foliage clump with tapered branch
+# tags: organic, foliage, sphere, clump, remesh, boolean, deform
+# description: Smooth-unioned sphere clump + tapered branch via boolean union, voxel remesh, and SimpleDeform taper. Reference technique — adapt proportions to your asset; never copy-paste.
+
 """Organic foliage pattern: smooth-unioned sphere clump + tapered branch.
 
 Reference technique for `blender-sdf` organic builds — retrieved via `blender-docs`

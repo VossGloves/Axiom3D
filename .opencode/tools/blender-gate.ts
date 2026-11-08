@@ -36,6 +36,10 @@ export default tool({
       .boolean()
       .default(true)
       .describe("Include the glTF export/re-import comparison stage; disable for fast failure loops"),
+    require_material: tool.schema
+      .boolean()
+      .default(true)
+      .describe("Fail geometry stage on meshes with no material; set false when the user asked for uncolored assets"),
     asset: tool.schema
       .string()
       .optional()
@@ -46,7 +50,13 @@ export default tool({
     try {
       const report = await request<GateReport>(
         "gate",
-        { code: args.code, timeout, render: args.render, export_roundtrip: args.export_roundtrip },
+        {
+          code: args.code,
+          timeout,
+          render: args.render,
+          export_roundtrip: args.export_roundtrip,
+          require_material: args.require_material ?? true,
+        },
         (timeout + 60) * 1000,
       )
       if (args.asset) {

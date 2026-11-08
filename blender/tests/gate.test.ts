@@ -174,6 +174,41 @@ bm.free()
     expect(report.failed_stage).toBe("geometry")
     expect(stage(report, "geometry").issues?.some((entry) => entry.issue === "no_mesh_objects")).toBe(true)
   })
+
+  test("bare mesh fails geometry with missing_material", async () => {
+    const report = await gate(`
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
+bpy.context.active_object.name = "crate_bare"
+`)
+    expect(report.failed_stage).toBe("geometry")
+    expect(
+      stage(report, "geometry").issues?.some(
+        (entry) => entry.issue === "missing_material" && entry.object === "crate_bare",
+      ),
+    ).toBe(true)
+  })
+
+  test("uncolored opt-out suppresses missing_material", async () => {
+    const report = await gate(`
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
+obj = bpy.context.active_object
+obj.name = "crate_uncolored"
+obj["uncolored"] = True
+`)
+    expect((stage(report, "geometry").issues ?? []).some((entry) => entry.issue === "missing_material")).toBe(false)
+    expect(stage(report, "geometry").passed).toBe(true)
+  })
+
+  test("require_material:false skips the material check", async () => {
+    const report = await gate(
+      `
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
+bpy.context.active_object.name = "crate_raw"
+`,
+      { require_material: false },
+    )
+    expect(stage(report, "geometry").passed).toBe(true)
+  })
 })
 
 describe("gate stage 5: mesh quality", () => {
@@ -201,8 +236,10 @@ bpy.context.scene.collection.objects.link(obj)
     const report = await gate(`
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
 bpy.context.active_object.name = "block_west"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("block_paint"))
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0.5, 0, 0.5))
 bpy.context.active_object.name = "block_east"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("block_paint_2"))
 `)
     expect(report.failed_stage).toBe("mesh_quality")
     expect(stage(report, "geometry").passed).toBe(true)
@@ -277,11 +314,12 @@ bpy.context.scene.collection.objects.link(obj)
 })
 
 describe("gate full pipeline", () => {
-  test("a clean crate passes every stage including roundtrip and renders", async () => {
+  test("a clean colored crate passes every stage including roundtrip and renders", async () => {
     const report = await gate(
       `
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
 bpy.context.active_object.name = "crate_gate"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("crate_paint"))
 `,
       { timeout: 300, render: true, export_roundtrip: true },
     )

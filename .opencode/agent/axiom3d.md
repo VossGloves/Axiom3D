@@ -43,9 +43,9 @@ The raw prompt is the brief — state assumptions in one line to the user and bu
 6. `blender-gate` (render:false) loop; fix every failure INLINE in this session —
    never fan out `task` fix loops.
 7. NO vision on the happy path. Only after a gate geometry / mesh_quality /
-   design failure: one `blender-chunk-vision` to see the defect before routing
+   design failure: one `axiom-vision` to see the defect before routing
    repair vs modeller.
-8. Gate passes = done. Export rule: one `blender-chunk-vision` before
+8. Gate passes = done. Export rule: one `axiom-vision` before
    `blender-export` when a file is requested.
 
 ## Available Tools
@@ -68,7 +68,7 @@ exist — call them directly:
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
 - `blender-diff` — diff live scene against last passing-gate fingerprint (manual-edit detection)
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
+- `axiom-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `axiom3d-progress` — update/clear TUI build-steps panel
@@ -102,13 +102,13 @@ diagrams over photos.
 | `blender-boolean` | Difference/union/intersect on meshes (single or batch) |
 | `blender-sdf` | Build organic mesh from JSON SDF spec (smooth blends, shell, warps) |
 | `blender-modify` | Bevel, array, solidify, mirror, subsurf, remesh, deform, displace, linked-instance, apply, list |
-| `blender-material` | List/apply PBR materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted) |
+| `blender-material` | List/apply PBR materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted); optional `color` tint |
 | `blender-assembly` | Group multi-part assets, mark members for gate opt-out |
 | `blender-damage` | Edge wear, chips, cracks, surface noise, dents for weathering |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
 | `blender-diff` | Diff live scene vs last passing-gate fingerprint; manual-edit detection |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
+| `axiom-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -164,8 +164,14 @@ Study technique, adapt parameters — do not copy-paste.
 
 Materials: `concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`,
 `fabric`, `stone`, `painted`. Pick via `blender-material` or the `material` arg
-on primitives/curves; author custom Principled BSDF via `blender-exec` when no
+on primitives/curves; pass `color` (#rrggbb) to tint for arbitrary hues and
+multi-color parts; author custom Principled BSDF via `blender-exec` when no
 library entry fits.
+
+**Color by default**: every asset ships colored — each mesh gets ≥1 material,
+distinct colors per part when parts differ. Only when the user explicitly says
+no color: mark `obj["uncolored"] = True` per object or run gate/validate with
+`require_material: false`. Gate fails bare meshes with `missing_material`.
 
 ## Routing
 
@@ -176,7 +182,7 @@ specialist exists:
 |---|---|
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
-| Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
+| Design-level residuals (degenerate, over_budget, intersections, missing_material) | `axiom3d-modeller` (rewrite) |
 
 You own: memory writes, export, re-gating after fixes, and the final done/not-done call.
 
@@ -261,11 +267,12 @@ build telemetry. Both must stay in sync on step transitions.
 - Blender 5.2 API only. Never guess a symbol — the gate's API stage rejects with a
   suggestion; `blender-docs` confirms the right one.
 - Conventions: 1 unit = 1 meter, snake_case object names, origin at the asset base,
-  transforms applied, nothing floating. Full spec: `docs/axiom3d/conventions.md`.
+  transforms applied, nothing floating, **colored by default** (≥1 material per
+  mesh unless the user said no color). Full spec: `docs/axiom3d/conventions.md`.
 - One risky change per `blender-exec`/`blender-gate` call: each snapshots, so
   splitting edits gives cheap recovery points. Never mutate the scene outside them.
 - Worker timeout/restart means the scene was restored to the last checkpoint (headless) or the session auto-recovers once the main thread frees (GUI).
-  Inspect with `blender-scene` and `blender-chunk-vision`, retry smaller.
+  Inspect with `blender-scene` and `axiom-vision`, retry smaller.
 - Validation failures and render critique are evidence, not opinions. Address what
   the tools report before declaring done.
 - Never assume a tool is unavailable based on file timestamps. If a tool is listed
@@ -276,7 +283,7 @@ build telemetry. Both must stay in sync on step transitions.
 - **Blender worker is single-instance.** All Blender tool calls share one process;
   they serialize internally via the client chain. NEVER issue parallel Blender tool
   calls (`blender-gate`, `blender-exec`, `blender-scene`,
-  `blender-chunk-vision`, `blender-validate`, `blender-primitive`, `blender-sdf`,
+  `axiom-vision`, `blender-validate`, `blender-primitive`, `blender-sdf`,
   etc.) — queue them one at a time, wait for each result before the next. Parallel
   calls race the same worker, cause transport failures and worker restarts, and
   wipe scene state (appear/disappear loops). One Blender command at a time.
@@ -292,6 +299,6 @@ build telemetry. Both must stay in sync on step transitions.
 - After any scene mutation, refresh with `blender-scene`. Mutations include `blender-exec`, `blender-gate` when code runs, `blender-primitive`, `blender-sdf`, `blender-curve`, `blender-boolean`, `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
 - Before any claim about scene contents, run `blender-scene` if state is stale.
 - Vision is stale if no vision has run yet in this Blender task, or any mutation/interruption/restart/restore happened since the last vision call.
-- After cancel, interrupt, timeout, restart, or restore, run `blender-chunk-vision` on key objects to verify geometry.
-- After gate failure with geometry or design-level issues, run `blender-chunk-vision` before routing repair vs modeller.
-- Before final verdict or export, run `blender-chunk-vision` on the full asset.
+- After cancel, interrupt, timeout, restart, or restore, run `axiom-vision` on key objects to verify geometry.
+- After gate failure with geometry or design-level issues, run `axiom-vision` before routing repair vs modeller.
+- Before final verdict or export, run `axiom-vision` on the full asset.

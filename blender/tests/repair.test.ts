@@ -21,6 +21,12 @@ const context: ToolContext = {
   async ask() {},
 }
 
+// mutating tools return {output, metadata} since the session-undo change;
+// assert against the text either way
+function text(result: unknown): string {
+  return typeof result === "string" ? result : (result as { output: string }).output
+}
+
 beforeAll(async () => {
   await status()
   await request("reset")
@@ -45,6 +51,7 @@ obj = bpy.data.objects.new("Cube", mesh)
 bpy.context.scene.collection.objects.link(obj)
 obj.location = (0, 0, 1)
 obj.scale = (2.0, 1.0, 1.0)
+obj["uncolored"] = True
 `,
       snapshot: false,
     })
@@ -85,13 +92,34 @@ bpy.ops.mesh.primitive_cube_add(size=0.0005, location=(0, 0, 0))
       code: `
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 1))
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("bench_paint"))
 `,
       snapshot: false,
     })
-    const out = (await blenderRepair.execute({}, context)) as string
+    const out = text(await blenderRepair.execute({}, context))
     const report = JSON.parse(out)
     expect(report.residual.passed).toBe(true)
     expect(report.fixed.some((entry: { issue: string }) => entry.issue === "default_name")).toBe(true)
+  })
+
+  test("missing_material is never auto-fixed; it comes back skipped", async () => {
+    await request("exec", {
+      code: `
+import bpy
+bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 1))
+bpy.context.active_object.name = "crate_uncolored"
+`,
+      snapshot: false,
+    })
+    const result = await request<{
+      fixed: Array<{ issue: string }>
+      skipped: Array<{ issue: string; reason?: string }>
+      residual: { passed: boolean; issues: Array<{ issue: string }> }
+    }>("repair", {}, 120_000)
+    expect(result.skipped.map((entry) => entry.issue)).toContain("missing_material")
+    expect(result.fixed.some((entry) => entry.issue === "missing_material")).toBe(false)
+    expect(result.residual.passed).toBe(false)
+    expect(result.residual.issues.some((entry) => entry.issue === "missing_material")).toBe(true)
   })
 
   test("validate is clean after repair", async () => {
@@ -100,6 +128,7 @@ bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 1))
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 1))
 bpy.context.active_object.scale = (3.0, 1.0, 1.0)
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("valid_paint"))
 `,
       snapshot: false,
     })

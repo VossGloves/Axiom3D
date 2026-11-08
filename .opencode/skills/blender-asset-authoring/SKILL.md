@@ -61,12 +61,12 @@ One-pass build — the raw prompt is the brief:
    first: deterministic fixers that snapshot, fix, and revalidate in one call.
    Design-level issues (degenerate, over_budget, intersections) come back as
    skipped — those need a source-script rewrite via `axiom3d-modeller`.
-   After gate failure with geometry or design-level issues, run `blender-chunk-vision`
+   After gate failure with geometry or design-level issues, run `axiom-vision`
    before choosing repair vs modeller. NO vision on the happy path — only after
-   a gate geometry / mesh_quality / design failure: one `blender-chunk-vision`
+   a gate geometry / mesh_quality / design failure: one `axiom-vision`
    to see the defect.
 9. **Export** — gate passes = done. Before export, run
-   `blender-chunk-vision`, then `blender-export` (glTF default) when a file is
+   `axiom-vision`, then `blender-export` (glTF default) when a file is
    requested.
 10. **Open in GUI** — `blender-open` loads .blend/.glb/.fbx directly into
     attached GUI session (requires `AXIOM3D_BLENDER_MODE=gui`).
@@ -107,7 +107,7 @@ real-world standards. After success: do NOT save dimensional presets.
 |---|---|
 | bpy script to write; gate failed on syntax / api / exec | `axiom3d-modeller` |
 | Gate failed on geometry / mesh_quality with fixable codes | `axiom3d-repair` |
-| Design-level residuals (degenerate, over_budget, intersections) | `axiom3d-modeller` (rewrite) |
+| Design-level residuals (degenerate, over_budget, intersections, missing_material) | `axiom3d-modeller` (rewrite) |
 
 Call specialists via the `task` tool with the evidence they need — they cannot
 see your conversation. Pass gate reports in the prompt.
@@ -123,9 +123,9 @@ You own: memory writes, export, re-gating after fixes, and the final done/not-do
   `blender-modify`, `blender-damage`, `blender-repair`, `blender-open`, and checkpoint restore.
 - Before any claim about scene contents, if state is stale run `blender-scene`
   (`blender-scene`).
-- After gate failure with geometry or design-level issues, run `blender-chunk-vision`
+- After gate failure with geometry or design-level issues, run `axiom-vision`
   before routing repair vs modeller.
-- Before final verdict or export, run `blender-chunk-vision`.
+- Before final verdict or export, run `axiom-vision`.
 
 ## Gate stages
 
@@ -135,8 +135,8 @@ evidence. The report is JSON: `passed`, `failed_stage`, and per-stage `issues`.
 
 Issue vocabulary (fix all errors):
 - geometry: `unit_scale`, `no_unit_system`, `default_name`, `bad_naming`,
-  `unapplied_scale`, `degenerate`, `missing_uv`, `over_budget`, `non_manifold`,
-  `zero_area_faces`, `flipped_faces`, `no_mesh_objects`
+  `unapplied_scale`, `degenerate`, `missing_uv`, `missing_material`, `over_budget`,
+  `non_manifold`, `zero_area_faces`, `flipped_faces`, `no_mesh_objects`
 - mesh_quality: `not_watertight` (warning), `inconsistent_winding`, `zero_volume`,
   `inverted_volume`, `self_intersection`, `object_intersection`, `floating_component`,
   `boolean_failed`
@@ -159,6 +159,10 @@ Issue vocabulary (fix all errors):
   only, never gaps; rare intentional islands: `obj["disconnected_parts"] = True`).
   Place joints from half-extents (`center = face ± (half_a + half_b)`), never
   freehand relative offsets.
+- **Color by default**: every mesh gets ≥1 material; distinct colors per part
+  when parts differ (use `blender-material` `color` arg for arbitrary hues).
+  Only when the user explicitly says no color: `obj["uncolored"] = True` per
+  object, or `require_material: false` on gate/validate for the whole asset.
 - glTF export applies modifiers (`export_apply` on 5.2).
 
 ## Geometry Tools
@@ -168,10 +172,10 @@ Issue vocabulary (fix all errors):
 - `blender-curve` — bezier/nurbs/poly curves, convert to mesh, sweep profile along path
 - `blender-boolean` — difference/union/intersect (single or batch)
 - `blender-modify` — bevel, array, solidify, mirror, subsurf, remesh, deform (bend/twist/taper), displace, linked-instance (shared mesh), apply (bake modifiers), list
-- `blender-material` — list/apply PBR library materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted)
+- `blender-material` — list/apply PBR library materials (concrete, steel, metal, plastic, wood, glass, rubber, fabric, stone, painted); optional `color` (#rrggbb) tint for multi-color assets
 - `blender-assembly` — group multi-part assets under empty, mark members for gate opt-out
 - `blender-damage` — edge_wear, chips, cracks, surface_noise, dents for weathering
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
+- `axiom-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-diff` — live scene vs stored fingerprint from last passing gate; reports added/removed/changed objects (manual-edit detection, gate on refine)
 
 ## Blender 5.2 gotchas (verified, these drift across versions)

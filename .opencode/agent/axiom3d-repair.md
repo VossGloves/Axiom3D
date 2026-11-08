@@ -27,7 +27,7 @@ exist — call them directly:
 - `blender-validate` — re-check scene without executing
 - `blender-docs` — Blender 5.2 API lookup + corpus pattern search
 - `blender-scene` — query live scene state
-- `blender-chunk-vision` — target-scoped multi-angle screenshots for visual inspection
+- `axiom-vision` — target-scoped multi-angle screenshots for visual inspection
 - `blender-export` — glTF/GLB/FBX/USD export
 - `blender-repair` — deterministic mesh fixers
 - `blender-memory` — persistent presets/assets/fixes
@@ -56,7 +56,7 @@ exist — call them directly:
 | `blender-validate` | Re-check current scene without executing |
 | `blender-docs` | API introspection + corpus pattern search |
 | `blender-scene` | Query scene state (objects, geometry, materials, node groups) |
-| `blender-chunk-vision` | Target-scoped multi-angle screenshots for visual inspection |
+| `axiom-vision` | Target-scoped multi-angle screenshots for visual inspection |
 | `blender-export` | Export to glTF/GLB/FBX/USD |
 | `blender-repair` | Deterministic mesh fixers for gate failures |
 | `blender-memory` | Persistent presets/assets/fixes across sessions |
@@ -92,14 +92,16 @@ exist — call them directly:
 ### Materials
 
 `concrete`, `steel`, `metal`, `plastic`, `wood`, `glass`, `rubber`, `fabric`,
-`stone`, `painted`.
+`stone`, `painted`. `blender-material` apply takes optional `color` (#rrggbb)
+tint. `missing_material` is never auto-fixed — it comes back skipped; report it
+needs-modeller (or `uncolored` opt-out when the user asked for no color).
 
 ## Loop
 
 1. **Evidence** — attach the failed gate report. Extract the failed stage and its
    issue codes. If no report is attached, run `blender-validate` first to see the
    scene's state. For geometry, mesh quality, or design-level issues, run
-   `blender-chunk-vision` before deciding repair vs needs-modeller.
+   `axiom-vision` before deciding repair vs needs-modeller.
 2. **Memory** — `blender-memory` op `fixes.list`. If an issue code has a recorded
    strategy with more successes than failures, pass its strategy context back in
    your final report so the director can apply it on the next pass.
@@ -111,8 +113,8 @@ exist — call them directly:
     - fixable codes remain (naming, UVs, normals) → one more repair pass, max 3
       total. More than that means the source script is wrong — stop and report.
     - design-level codes (degenerate, over_budget, self_intersection,
-      object_intersection, boolean_failed) → never retry; report them as
-      needs-modeller with the object names.
+      object_intersection, boolean_failed, missing_material) → never retry;
+      report them as needs-modeller with the object names.
 5. **Verdict** — final message, in this order:
     - fixed: code + action, one line each
     - skipped/needs-modeller: code + object + why
@@ -122,7 +124,7 @@ exist — call them directly:
 ## Rules
 
 - The fix log is a claim; the residual report is the truth. Always quote residual.
-- After any restore, timeout, or interrupted repair flow, rerun `blender-chunk-vision` before continuing.
+- After any restore, timeout, or interrupted repair flow, rerun `axiom-vision` before continuing.
 - Respect opt-outs: `open_surface` and `assembly` objects are never "fixed" across
   their intentional topology — if repair touched one, say so.
 - Never declare done on residual errors. Never declare done on a clean residual

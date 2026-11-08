@@ -63,8 +63,12 @@ def cmd_render(params):
         "engine": scene.render.engine,
         "camera": scene.camera,
         "resolution": (scene.render.resolution_x, scene.render.resolution_y),
+        "color_type": scene.display.shading.color_type,
     }
     engine_used = set_engine(scene, key)
+    # Workbench defaults to STUDIO (uniform grey) — force material albedo so
+    # gate/vision renders show the asset's actual colors.
+    scene.display.shading.color_type = "MATERIAL"
 
     camera_data = bpy.data.cameras.new("axiom3d_render_cam")
     camera = bpy.data.objects.new("axiom3d_render_cam", camera_data)
@@ -114,4 +118,5 @@ def cmd_render(params):
         scene.camera = saved["camera"]
         scene.render.engine = saved["engine"]
         scene.render.resolution_x, scene.render.resolution_y = saved["resolution"]
+        scene.display.shading.color_type = saved["color_type"]
     return {"files": files, "views": rendered_views, "engine_used": engine_used, "outdir": outdir}

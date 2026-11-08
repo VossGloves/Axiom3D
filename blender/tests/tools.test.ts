@@ -14,7 +14,7 @@ import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderDocs from "../../.opencode/tools/blender-docs"
 import blenderMaterial from "../../.opencode/tools/blender-material"
 import blenderModify from "../../.opencode/tools/blender-modify"
-import blenderChunkVision from "../../.opencode/tools/blender-chunk-vision"
+import axiomVision from "../../.opencode/tools/axiom-vision"
 import { request, restart, stop } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
@@ -30,6 +30,12 @@ const context: ToolContext = {
   async ask() {},
 }
 
+// mutating tools return {output, metadata} since the session-undo change;
+// assert against the text either way
+function text(result: unknown): string {
+  return typeof result === "string" ? result : (result as { output: string }).output
+}
+
 const tools = {
   exec: blenderExec,
   scene: blenderScene,
@@ -40,7 +46,7 @@ const tools = {
   docs: blenderDocs,
   material: blenderMaterial,
   modify: blenderModify,
-  vision: blenderChunkVision,
+  vision: axiomVision,
 }
 
 beforeAll(async () => {
@@ -65,23 +71,27 @@ describe("tool shape", () => {
 
 describe("agent flow: crate", () => {
   test("exec creates a named cube", async () => {
-    const output = (await tools.exec.execute(
-      {
-        code: `bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
+    const output = text(
+      await tools.exec.execute(
+        {
+          code: `bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.5))
 bpy.context.active_object.name = "crate_tool"
+bpy.context.active_object.data.materials.append(bpy.data.materials.new("tool_paint"))
 print("made crate")`,
-        timeout: 30,
-      },
-      context,
-    )) as string
+          timeout: 30,
+        },
+        context,
+      ),
+    )
     expect(output).toContain("status: ok")
     expect(output).toContain('"crate_tool"')
   })
 
   test("exec imports scipy for optimize and cKDTree", async () => {
-    const output = (await tools.exec.execute(
-      {
-        code: `import numpy as np
+    const output = text(
+      await tools.exec.execute(
+        {
+          code: `import numpy as np
 from scipy import optimize
 from scipy.spatial import cKDTree
 
@@ -91,10 +101,11 @@ distance, index = tree.query([0.9, 0.95, 1.1])
 print(f"root={root.root:.6f}")
 print(f"nearest_index={int(index)}")
 print(f"nearest_distance={float(distance):.6f}")`,
-        timeout: 30,
-      },
-      context,
-    )) as string
+          timeout: 30,
+        },
+        context,
+      ),
+    )
     expect(output).toContain("status: ok")
     expect(output).toContain("root=1.414214")
     expect(output).toContain("nearest_index=1")
@@ -132,7 +143,7 @@ print(f"nearest_distance={float(distance):.6f}")`,
     )
   })
 
-  test("chunk-vision captures views of a target object", async () => {
+  test("axiom-vision captures views of a target object", async () => {
     const result = (await tools.vision.execute({ target: "crate_tool" }, context)) as {
       title: string
       output: string
@@ -144,7 +155,7 @@ print(f"nearest_distance={float(distance):.6f}")`,
     expect(result.attachments?.[0].url).toContain("data:image/png;base64,")
   }, 240_000)
 
-  test("chunk-vision frames only the named target", async () => {
+  test("axiom-vision frames only the named target", async () => {
     const result = (await tools.vision.execute(
       { target: "crate_tool", views: [{ name: "front", azimuth: 0, elevation: 0 }], engine: "workbench" },
       context,
