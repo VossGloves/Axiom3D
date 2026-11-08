@@ -311,7 +311,8 @@ download_with_progress() {
     trap "trap - RETURN; rm -f \"$tracefile\"; printf '\033[?25h' >&4; exec 4>&-" RETURN
 
     (
-        curl --trace-ascii "$tracefile" -s --retry 3 --retry-all-errors --retry-delay 1 -L -o "$output" "$url"
+        curl --trace-ascii "$tracefile" -s --retry 3 --retry-all-errors --retry-delay 1 \
+            --speed-limit 1024 --speed-time 30 -L -o "$output" "$url"
     ) &
     local curl_pid=$!
 
@@ -359,7 +360,9 @@ fetch() {
             return 0
         fi
     fi
-    curl -# --retry 3 --retry-all-errors --retry-delay 1 -L -o "$output" "$url"
+    # --speed-* aborts silent stalls so --retry can restart the transfer.
+    curl -# --retry 3 --retry-all-errors --retry-delay 1 \
+        --speed-limit 1024 --speed-time 30 -L -o "$output" "$url"
 }
 
 extract_binary() {
