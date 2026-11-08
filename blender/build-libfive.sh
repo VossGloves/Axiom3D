@@ -68,9 +68,14 @@ if [ "$TARGET" = "windows-x64" ]; then
   # generator discovery is unreliable under git-bash on GitHub runners.
   GEN=(-G Ninja)
   command -v ninja >/dev/null 2>&1 || GEN=(-G "Visual Studio 17 2022")
+  VCPKG_INC="$VCPKG_ROOT/installed/x64-windows/include"
   echo "==> configuring (MSVC + vcpkg, generator: ${GEN[*]})"
+  # Upstream's MSVC branch never sets EIGEN_INCLUDE_DIRS / PNG_INCLUDE_DIR
+  # (pkg-config sets them only on the unix path), so feed them explicitly.
   cmake -S "$SRC" -B "$BUILD_DIR" "${GEN[@]}" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+    -DEIGEN_INCLUDE_DIRS="$VCPKG_INC" \
+    -DPNG_INCLUDE_DIR="$VCPKG_INC" \
     "${COMMON_ARGS[@]}"
   echo "==> building libfive libfive-stdlib"
   cmake --build "$BUILD_DIR" --config Release --target libfive libfive-stdlib --parallel "$JOBS"

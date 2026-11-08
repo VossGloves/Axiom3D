@@ -96,9 +96,10 @@ jobs:
         with:
           node-version: "24"
 
-      # .opencode/package-lock.json is gitignored, and in-repo npm walks up into
-      # the root workspace (whose catalog: specs npm cannot parse) — stage
-      # outside the repo, where .opencode is an isolated npm project.
+      # .opencode/package.json and package-lock.json are gitignored (machine-local;
+      # runtime npmSvc owns them), and in-repo npm walks into the root workspace whose
+      # catalog: specs npm cannot parse — stage outside the repo and pin the one
+      # dependency .opencode declares.
       - name: Package
         run: |
           set -euo pipefail
@@ -106,6 +107,13 @@ jobs:
           mkdir -p "$stage/.opencode" "$stage/blender" "$stage/docs/axiom3d"
           (cd .opencode && tar -cf - --exclude='node_modules' --exclude='__pycache__' .) \
             | tar -xf - -C "$stage/.opencode"
+          cat > "$stage/.opencode/package.json" <<'EOF'
+          {
+            "dependencies": {
+              "@opencode-ai/plugin": "1.19.0"
+            }
+          }
+          EOF
           (cd "$stage/.opencode" && npm install --no-audit --no-fund)
           # Config dir ships complete, including node_modules (offline startup).
           # Harness ships without vendor/ (platform wheels + libfive are
