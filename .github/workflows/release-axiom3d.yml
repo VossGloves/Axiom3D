@@ -96,8 +96,10 @@ jobs:
         with:
           node-version: "24"
 
+      # .opencode/package-lock.json is intentionally gitignored, so install
+      # from the exact-pinned package.json instead of ci.
       - name: Install config-dir dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
         working-directory: .opencode
 
       - name: Package
@@ -135,7 +137,7 @@ jobs:
           - target: linux-arm64
             os: ubuntu-22.04-arm
           - target: darwin-arm64
-            os: macos-14
+            os: macos-15
           - target: darwin-x64
             os: macos-15-intel
           - target: windows-x64
@@ -161,6 +163,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: vcpkg install eigen3 libpng boost-container boost-bimap
+
+      # CMake's VS-generator discovery fails under the runner's git-bash;
+      # explicit MSVC env + Ninja sidesteps it.
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Build libfive
         shell: bash

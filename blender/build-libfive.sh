@@ -45,6 +45,8 @@ sed -i.bak 's| /arch:AVX2||' "$SRC/CMakeLists.txt"
 # branch asks for lowercase "boost", which only resolves on case-insensitive
 # filesystems.
 sed -i.bak 's/find_package(boost /find_package(Boost /' "$SRC/CMakeLists.txt"
+# Upstream writes "/MD/" — MSVC tolerates the stray slash only as a warning.
+sed -i.bak 's|/MD/|/MD |' "$SRC/CMakeLists.txt"
 
 COMMON_ARGS=(
   -DCMAKE_BUILD_TYPE=Release
@@ -62,8 +64,12 @@ if [ "$TARGET" = "windows-x64" ]; then
     echo "error: VCPKG_ROOT must point at a vcpkg checkout (eigen3, boost, libpng)" >&2
     exit 1
   fi
-  echo "==> configuring (MSVC + vcpkg)"
-  cmake -S "$SRC" -B "$BUILD_DIR" -G "Visual Studio 17 2022" \
+  # Ninja + the MSVC env from ilammy/msvc-dev-cmd; CMake's Visual Studio
+  # generator discovery is unreliable under git-bash on GitHub runners.
+  GEN=(-G Ninja)
+  command -v ninja >/dev/null 2>&1 || GEN=(-G "Visual Studio 17 2022")
+  echo "==> configuring (MSVC + vcpkg, generator: ${GEN[*]})"
+  cmake -S "$SRC" -B "$BUILD_DIR" "${GEN[@]}" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     "${COMMON_ARGS[@]}"
   echo "==> building libfive libfive-stdlib"
@@ -106,6 +112,14 @@ cp -R "$ROOT/blender/libfive-pkg/." "$STAGE/"
 rm -rf "$STAGE/__pycache__" "$STAGE/stdlib/__pycache__"
 cp "$LIBFIVE_LIB" "$STAGE/src/$(basename "$LIBFIVE_LIB")"
 cp "$STDLIB_LIB" "$STAGE/src/$(basename "$STDLIB_LIB")"
+
+if [ "$TARGET" = "windows-x64" ] && [ -n "${VCPKG_ROOT:-}" ]; then
+  # Dynamic vcpkg triplet: libfive.dll links libpng/zlib DLLs, and Blender
+  # only resolves them from the DLL directory registered in sdf.py.
+  for dll in "$VCPKG_ROOT"/installed/x64-windows/bin/*.dll; do
+    [ -f "$dll" ] && cp "$dll" "$STAGE/src/"
+  done
+fi
 
 TARBALL="$OUT/libfive-$TARGET.tar.gz"
 tar -czf "$TARBALL" -C "$WORK/pkg" libfive
