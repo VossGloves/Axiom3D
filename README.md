@@ -54,9 +54,30 @@ with structured evidence.
 ## Requirements
 
 - **Blender 5.2** (headless; the harness pins this version exactly)
-- **[Bun](https://bun.sh)**
+- **[Bun](https://bun.sh)** — development builds only
 
-## Getting started
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | bash
+```
+
+Downloads to `~/.axiom3d/`: the compiled CLI, the `axiom3d` agent with the full
+`blender-*` toolset, the Blender harness, and the libfive kernels for your platform
+(linux/darwin × x64/arm64, windows-x64), then puts `axiom3d` on your `PATH`.
+
+If Blender 5.2 is not installed yet, the installer warns and skips dependency
+bootstrap — install [Blender](https://www.blender.org/download/) (macOS:
+`brew install --cask blender`, Windows: `winget install BlenderFoundation.Blender`),
+then re-run the installer once to fetch `scipy`/`trimesh` into Blender's Python.
+Other options: `--version <x.y.z>`, `--no-modify-path`, `--binary <path>`.
+
+```bash
+cd <project>
+axiom3d
+```
+
+## From source
 
 ```bash
 bun install
@@ -68,6 +89,9 @@ export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
 "<blender>/5.2/python/bin/python" -m pip install --no-deps \
   --target blender/vendor -r blender/requirements.txt
 
+# libfive (blender-sdf kernel), built from source:
+./blender/build-libfive.sh <linux-x64|linux-arm64|darwin-x64|darwin-arm64|windows-x64>
+
 # Register the global `axiom3d` command (one time):
 bun link
 ```
@@ -78,13 +102,14 @@ Then start it from anywhere:
 axiom3d
 ```
 
-`axiom3d` is a thin launcher (see `script/axiom3d.ts`) that starts the same thing as
-`bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any arguments.
-Ask it to build something — e.g. *"make a 1 m crate"* or *"model a wooden chair with
-soft bevels"*. The agent retrieves the API, composes geometry from primitives and
-modifiers with the brief's proportions, and runs the gate until the asset passes.
-Vendored Python deps include `trimesh` for mesh analysis and `scipy` for optimization,
-interpolation, smoothing, and spatial search.
+Installed builds run the compiled binary through a launcher wrapper; from source,
+`axiom3d` is a thin script (see `script/axiom3d.ts`) that starts the same thing as
+`bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any
+arguments. Ask it to build something — e.g. *"make a 1 m crate"* or *"model a wooden
+chair with soft bevels"*. The agent retrieves the API, composes geometry from
+primitives and modifiers with the brief's proportions, and runs the gate until the
+asset passes. Python deps include `trimesh` for mesh analysis and `scipy` for
+optimization, interpolation, smoothing, and spatial search.
 
 The full design, phase history, and conventions live in [`PLAN.md`](./PLAN.md) and
 [`docs/axiom3d/conventions.md`](./docs/axiom3d/conventions.md).
@@ -110,12 +135,20 @@ CI (`.github/workflows/axiom3d.yml`) runs on every push/PR to `main`: it install
 pinned Blender 5.2.2 (cached), `bun typecheck`, the pattern cookbook validator, and the
 full headless Workbench test suite under Xvfb.
 
+Releases (`.github/workflows/release-axiom3d.yml`) run on every `v*` tag: they build
+all CLI targets, package the config + harness payload, compile libfive native kernels
+per platform, and publish everything as GitHub release assets consumed by `install`.
+
 ## Layout
 
 ```
-script/axiom3d.ts      global `axiom3d` launcher (registered via `bun link`)
+install              curl|bash installer (release assets -> ~/.axiom3d)
+script/axiom3d.ts    dev launcher (registered via `bun link`)
 blender/
 ├── worker.py        persistent session: JSON-RPC loop, snapshot/restore, watchdog
+├── bootstrap.py     pip-install Blender deps (run by the installer)
+├── build-libfive.sh build libfive native kernels + package per-platform assets
+├── libfive-pkg/     libfive python bindings (MPL-2.0), packaged with native libs
 ├── rpc/             command handlers (exec, gate, docs, render, export, materials, modify, ...)
 ├── gate/            staged verification pipeline + AST API-symbol checker
 ├── geom/            evaluated-mesh geometry + trimesh quality checks

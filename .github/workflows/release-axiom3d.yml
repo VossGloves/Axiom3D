@@ -1,0 +1,204 @@
+name: release-axiom3d
+run-name: "release axiom3d ${{ inputs.version || github.ref_name }}"
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (x.y.z, no v prefix)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - id: v
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${{ github.ref_name }}"
+          else
+            V="v${{ inputs.version }}"
+          fi
+          V="${V#v}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
+
+  # Cross-compiles every CLI target from one Linux runner (same as upstream),
+  # then repacks each binary as axiom3d-<target>.tar.gz / .zip.
+  binary:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Build CLI
+        run: bun packages/opencode/script/build.ts
+        env:
+          OPENCODE_VERSION: ${{ needs.version.outputs.version }}
+          OPENCODE_CHANNEL: latest
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          found=0
+          for dir in packages/opencode/dist/opencode-*/; do
+            [ -d "$dir" ] || continue
+            found=1
+            target="$(basename "$dir" | sed 's/^opencode-//')"
+            bin="$(ls "$dir"/bin/opencode* | head -1)"
+            # Keep the .exe suffix when the built binary has one.
+            name="axiom3d${bin##*opencode}"
+            stage="pkg/$target"
+            mkdir -p "$stage"
+            cp "$bin" "$stage/$name"
+            chmod 755 "$stage/$name"
+            case "$target" in
+              *windows*)
+                (cd "$stage" && zip -qr "../../axiom3d-$target.zip" "$name")
+                ;;
+              *)
+                tar -czf "axiom3d-$target.tar.gz" -C "$stage" "$name"
+                ;;
+            esac
+            echo "packaged axiom3d-$target ($name)"
+          done
+          [ "$found" = "1" ]
+          ls -la axiom3d-*
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: axiom3d-binaries
+          path: axiom3d-*
+          if-no-files-found: error
+
+  # Everything the wrapper points at: agent/tools/skills/config, the Blender
+  # harness, conventions doc. One payload for all platforms.
+  common:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Install config-dir dependencies
+        run: npm ci
+        working-directory: .opencode
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          stage="$(mktemp -d)"
+          mkdir -p "$stage/.opencode" "$stage/blender" "$stage/docs/axiom3d"
+          # Config dir ships complete, including node_modules (offline startup).
+          (cd .opencode && tar -cf - --exclude='__pycache__' .) | tar -xf - -C "$stage/.opencode"
+          # Harness ships without vendor/ (platform wheels + libfive are
+          # installed separately) or bytecode caches.
+          (cd blender && tar -cf - --exclude='vendor' --exclude='__pycache__' --exclude='*.pyc' .) \
+            | tar -xf - -C "$stage/blender"
+          cp docs/axiom3d/conventions.md "$stage/docs/axiom3d/"
+          cp LICENSE "$stage/LICENSE"
+          tar -czf axiom3d-common.tar.gz -C "$stage" .opencode blender docs LICENSE
+          tar -tzf axiom3d-common.tar.gz | head -20
+          du -h axiom3d-common.tar.gz
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: axiom3d-common
+          path: axiom3d-common.tar.gz
+          if-no-files-found: error
+
+  # libfive native kernels: ctypes bindings are pure python (checked in under
+  # blender/libfive-pkg), only the two shared libraries are per-platform.
+  libfive:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-22.04
+          - target: linux-arm64
+            os: ubuntu-22.04-arm
+          - target: darwin-arm64
+            os: macos-14
+          - target: darwin-x64
+            os: macos-15-intel
+          - target: windows-x64
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ pkg-config libeigen3-dev libpng-dev libboost-dev
+
+      - name: Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake eigen libpng boost pkg-config
+
+      # vcpkg is preinstalled on GitHub windows runners. libfive only needs
+      # boost-container + boost-bimap headers (plus their config machinery).
+      - name: Dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: vcpkg install eigen3 libpng boost-container boost-bimap
+
+      - name: Build libfive
+        shell: bash
+        run: ./blender/build-libfive.sh "${{ matrix.target }}"
+        env:
+          VCPKG_ROOT: ${{ runner.os == 'Windows' && 'C:\vcpkg' || '' }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: libfive-${{ matrix.target }}
+          path: dist/libfive-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [version, binary, common, libfive]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ls -la assets
+          gh release create "${{ needs.version.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Axiom3D ${{ needs.version.outputs.version }}" \
+            --notes "$(printf '%s\n' \
+              "Terminal install:" \
+              "" \
+              '```' \
+              "curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/install | bash" \
+              '```' \
+              "" \
+              "Requires Blender 5.2 (https://www.blender.org/download/)." \
+              "libfive source (MPL-2.0/GPL-3.0 bindings + native kernels): https://github.com/AonoZan/libfive/tree/379a54dbbdfd0724100baa6feddb7083ab0e6767")" \
+            assets/*

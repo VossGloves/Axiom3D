@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-APP=opencode
+APP=axiom3d
+REPO=madmarv10/Axiom3D
+RELEASE_URL="https://github.com/$REPO/releases"
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -9,20 +11,20 @@ NC='\033[0m' # No Color
 
 usage() {
     cat <<EOF
-OpenCode Installer
+Axiom3D Installer
 
-Usage: install.sh [options]
+Usage: install [options]
 
 Options:
     -h, --help              Display this help message
-    -v, --version <version> Install a specific version (e.g., 1.0.180)
+    -v, --version <version> Install a specific version (e.g., 1.2.3)
     -b, --binary <path>     Install from a local binary instead of downloading
         --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
 
 Examples:
-    curl -fsSL https://opencode.ai/install | bash
-    curl -fsSL https://opencode.ai/install | bash -s -- --version 1.0.180
-    ./install --binary /path/to/opencode
+    curl -fsSL https://raw.githubusercontent.com/$REPO/main/install | bash
+    curl -fsSL https://raw.githubusercontent.com/$REPO/main/install | bash -s -- --version 1.2.3
+    ./install --binary /path/to/axiom3d
 EOF
 }
 
@@ -65,17 +67,57 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-INSTALL_DIR=$HOME/.opencode/bin
-mkdir -p "$INSTALL_DIR"
+INSTALL_DIR="${AXIOM3D_HOME:-$HOME/.axiom3d}"
+BIN_DIR="$INSTALL_DIR/bin"
+LIB_DIR="$INSTALL_DIR/lib"
+MARKER="$INSTALL_DIR/version"
+mkdir -p "$BIN_DIR" "$LIB_DIR"
 
-# If --binary is provided, skip all download/detection logic
-if [ -n "$binary_path" ]; then
-    if [ ! -f "$binary_path" ]; then
-        echo -e "${RED}Error: Binary not found at ${binary_path}${NC}"
-        exit 1
-    fi
-    specific_version="local"
-else
+# Payload layout installed under $INSTALL_DIR:
+#   bin/axiom3d      launcher (exports AXIOM3D_ROOT, OPENCODE_CONFIG_DIR)
+#   lib/axiom3d      compiled binary
+#   .opencode/       agent + tools + skills + config + plugins + node_modules
+#   blender/         harness python (vendor/ filled in below)
+#   docs/            conventions doc referenced by opencode.jsonc
+
+write_wrapper() {
+    # Bake the actual install dir into the launcher so AXIOM3D_HOME overrides
+    # are honored without re-running the installer.
+    cat > "$BIN_DIR/$APP" <<WRAPPER
+#!/usr/bin/env bash
+# Axiom3D launcher: points the compiled CLI at its installed config + harness.
+AXIOM3D_HOME="\${AXIOM3D_HOME:-$INSTALL_DIR}"
+export AXIOM3D_ROOT="\$AXIOM3D_HOME"
+export OPENCODE_CONFIG_DIR="\$AXIOM3D_HOME/.opencode"
+export AXIOM3D_BLENDER_MODE="\${AXIOM3D_BLENDER_MODE:-gui}"
+exec "\$AXIOM3D_HOME/lib/axiom3d" "\$@"
+WRAPPER
+    chmod 755 "$BIN_DIR/$APP"
+
+    local uname_s
+    uname_s=$(uname -s 2>/dev/null || echo unknown)
+    case "$uname_s" in
+        MINGW*|MSYS*|CYGWIN*)
+            cat > "$BIN_DIR/$APP.cmd" <<CMD
+@echo off
+setlocal
+if not defined AXIOM3D_HOME set "AXIOM3D_HOME=$INSTALL_DIR"
+set "AXIOM3D_ROOT=%AXIOM3D_HOME%"
+set "OPENCODE_CONFIG_DIR=%AXIOM3D_HOME%\\.opencode"
+if not defined AXIOM3D_BLENDER_MODE set "AXIOM3D_BLENDER_MODE=gui"
+"%AXIOM3D_HOME%\\lib\\axiom3d.exe" %*
+CMD
+            ;;
+    esac
+}
+
+os=""
+arch=""
+target=""
+base_target=""
+
+detect_platform() {
+    local raw_os
     raw_os=$(uname -s)
     os=$(echo "$raw_os" | tr '[:upper:]' '[:lower:]')
     case "$raw_os" in
@@ -93,13 +135,14 @@ else
     fi
 
     if [ "$os" = "darwin" ] && [ "$arch" = "x64" ]; then
+      local rosetta_flag
       rosetta_flag=$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)
       if [ "$rosetta_flag" = "1" ]; then
         arch="arm64"
       fi
     fi
 
-    combo="$os-$arch"
+    local combo="$os-$arch"
     case "$combo" in
       linux-x64|linux-arm64|darwin-x64|darwin-arm64|windows-x64)
         ;;
@@ -109,17 +152,11 @@ else
         ;;
     esac
 
-    archive_ext=".zip"
-    if [ "$os" = "linux" ]; then
-      archive_ext=".tar.gz"
-    fi
-
-    is_musl=false
+    local is_musl=false
     if [ "$os" = "linux" ]; then
       if [ -f /etc/alpine-release ]; then
         is_musl=true
       fi
-
       if command -v ldd >/dev/null 2>&1; then
         if ldd --version 2>&1 | grep -qi musl; then
           is_musl=true
@@ -127,24 +164,21 @@ else
       fi
     fi
 
-    needs_baseline=false
+    local needs_baseline=false
     if [ "$arch" = "x64" ]; then
-      if [ "$os" = "linux" ]; then
-        if ! grep -qwi avx2 /proc/cpuinfo 2>/dev/null; then
-          needs_baseline=true
-        fi
+      if [ "$os" = "linux" ] && ! grep -qwi avx2 /proc/cpuinfo 2>/dev/null; then
+        needs_baseline=true
       fi
-
       if [ "$os" = "darwin" ]; then
+        local avx2
         avx2=$(sysctl -n hw.optional.avx2_0 2>/dev/null || echo 0)
         if [ "$avx2" != "1" ]; then
           needs_baseline=true
         fi
       fi
-
       if [ "$os" = "windows" ]; then
+        local ps out=""
         ps="(Add-Type -MemberDefinition \"[DllImport(\"\"kernel32.dll\"\")] public static extern bool IsProcessorFeaturePresent(int ProcessorFeature);\" -Name Kernel32 -Namespace Win32 -PassThru)::IsProcessorFeaturePresent(40)"
-        out=""
         if command -v powershell.exe >/dev/null 2>&1; then
           out=$(powershell.exe -NoProfile -NonInteractive -Command "$ps" 2>/dev/null || true)
         elif command -v pwsh >/dev/null 2>&1; then
@@ -165,44 +199,34 @@ else
       target="$target-musl"
     fi
 
-    filename="$APP-$target$archive_ext"
+    # libfive kernels are built without CPU-specific flags, so they use the
+    # plain target regardless of baseline/musl variants of the CLI binary.
+    base_target=$(echo "$target" | sed 's/-baseline//; s/-musl//')
+}
 
-
-    if [ "$os" = "linux" ]; then
-        if ! command -v tar >/dev/null 2>&1; then
-             echo -e "${RED}Error: 'tar' is required but not installed.${NC}"
-             exit 1
-        fi
-    else
-        if ! command -v unzip >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'unzip' is required but not installed.${NC}"
-            exit 1
-        fi
-    fi
-
-    if [ -z "$requested_version" ]; then
-        url="https://github.com/anomalyco/opencode/releases/latest/download/$filename"
-        specific_version=$(curl -s https://api.github.com/repos/anomalyco/opencode/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
-
-        if [[ $? -ne 0 || -z "$specific_version" ]]; then
-            echo -e "${RED}Failed to fetch version information${NC}"
-            exit 1
-        fi
-    else
-        # Strip leading 'v' if present
+resolve_version() {
+    if [ -n "$requested_version" ]; then
         requested_version="${requested_version#v}"
-        url="https://github.com/anomalyco/opencode/releases/download/v${requested_version}/$filename"
-        specific_version=$requested_version
-
-        # Verify the release exists before downloading
-        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/anomalyco/opencode/releases/tag/v${requested_version}")
+        specific_version="$requested_version"
+        local http_status
+        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "$RELEASE_URL/tag/v$specific_version")
         if [ "$http_status" = "404" ]; then
-            echo -e "${RED}Error: Release v${requested_version} not found${NC}"
-            echo -e "${MUTED}Available releases: https://github.com/anomalyco/opencode/releases${NC}"
+            echo -e "${RED}Error: Release v$specific_version not found${NC}"
+            echo -e "${MUTED}Available releases: $RELEASE_URL${NC}"
             exit 1
         fi
+        url_base="$RELEASE_URL/download/v$specific_version"
+        return
     fi
-fi
+
+    specific_version=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" \
+        | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+    if [ -z "$specific_version" ]; then
+        echo -e "${RED}Failed to fetch version information${NC}"
+        exit 1
+    fi
+    url_base="$RELEASE_URL/download/v$specific_version"
+}
 
 print_message() {
     local level=$1
@@ -218,20 +242,17 @@ print_message() {
     echo -e "${color}${message}${NC}"
 }
 
-check_version() {
-    if command -v opencode >/dev/null 2>&1; then
-        opencode_path=$(which opencode)
-
-        ## Check the installed version
-        installed_version=$(opencode --version 2>/dev/null || echo "")
-
-        if [[ "$installed_version" != "$specific_version" ]]; then
-            print_message info "${MUTED}Installed version: ${NC}$installed_version."
-        else
-            print_message info "${MUTED}Version ${NC}$specific_version${MUTED} already installed"
-            exit 0
-        fi
+already_installed() {
+    local installed=""
+    [ -f "$MARKER" ] && installed=$(cat "$MARKER")
+    local exe=""
+    [ -x "$LIB_DIR/axiom3d" ] && exe="axiom3d"
+    [ -x "$LIB_DIR/axiom3d.exe" ] && exe="axiom3d.exe"
+    if [ "$installed" = "$specific_version" ] && [ -x "$BIN_DIR/$APP" ] && [ -n "$exe" ]; then
+        print_message info "${MUTED}Axiom3D ${NC}$specific_version${MUTED} already installed${NC}"
+        return 0
     fi
+    return 1
 }
 
 unbuffered_sed() {
@@ -240,7 +261,8 @@ unbuffered_sed() {
     elif echo | sed -l -e "" >/dev/null 2>&1; then
         sed -nl "$@"
     else
-        local pad="$(printf "\n%512s" "")"
+        local pad
+        pad="$(printf "\n%512s" "")"
         sed -ne "s/$/\\${pad}/" "$@"
     fi
 }
@@ -256,9 +278,11 @@ print_progress() {
     local on=$(( percent * width / 100 ))
     local off=$(( width - on ))
 
-    local filled=$(printf "%*s" "$on" "")
+    local filled
+    filled=$(printf "%*s" "$on" "")
     filled=${filled// /■}
-    local empty=$(printf "%*s" "$off" "")
+    local empty
+    empty=$(printf "%*s" "$off" "")
     empty=${empty// /･}
 
     printf "\r${ORANGE}%s%s %3d%%${NC}" "$filled" "$empty" "$percent" >&4
@@ -275,7 +299,7 @@ download_with_progress() {
     fi
 
     local tmp_dir=${TMPDIR:-/tmp}
-    local basename="${tmp_dir}/opencode_install_$$"
+    local basename="${tmp_dir}/axiom3d_install_$$"
     local tracefile="${basename}.trace"
 
     rm -f "$tracefile"
@@ -324,40 +348,131 @@ download_with_progress() {
     return $ret
 }
 
-download_and_install() {
-    print_message info "\n${MUTED}Installing ${NC}opencode ${MUTED}version: ${NC}$specific_version"
-    local tmp_dir="${TMPDIR:-/tmp}/opencode_install_$$"
-    mkdir -p "$tmp_dir"
-
-    if [[ "$os" == "windows" ]] || ! [ -t 2 ] || ! download_with_progress "$url" "$tmp_dir/$filename"; then
-        # Fallback to standard curl on Windows, non-TTY environments, or if custom progress fails
-        curl -# -L -o "$tmp_dir/$filename" "$url"
+fetch() {
+    # fetch <url> <output>; falls back to plain curl when the traced progress
+    # reader is unavailable (non-TTY, Windows).
+    local url="$1"
+    local output="$2"
+    if [ -t 2 ] && ! [[ "$os" == "windows" ]]; then
+        if download_with_progress "$url" "$output"; then
+            return 0
+        fi
     fi
+    curl -# -L -o "$output" "$url"
+}
 
-    if [ "$os" = "linux" ]; then
+extract_binary() {
+    print_message info "\n${MUTED}Installing ${NC}axiom3d ${MUTED}version: ${NC}$specific_version"
+    local tmp_dir="${TMPDIR:-/tmp}/axiom3d_install_$$"
+    mkdir -p "$tmp_dir"
+    local filename="axiom3d-$target$archive_ext"
+
+    fetch "$url_base/$filename" "$tmp_dir/$filename"
+
+    if [ "$os" = "linux" ] || [ "$os" = "darwin" ]; then
         tar -xzf "$tmp_dir/$filename" -C "$tmp_dir"
     else
         unzip -q "$tmp_dir/$filename" -d "$tmp_dir"
     fi
+    # The archive itself also matches axiom3d*; pick the extracted executable.
+    local binary
+    binary=$(find "$tmp_dir" -maxdepth 2 -type f \( -name 'axiom3d' -o -name 'axiom3d.exe' \) | head -1)
+    if [ -z "$binary" ]; then
+        echo -e "${RED}Error: no binary found in $filename${NC}"
+        exit 1
+    fi
 
-    mv "$tmp_dir/opencode" "$INSTALL_DIR"
-    chmod 755 "${INSTALL_DIR}/opencode"
+    local exe_suffix=""
+    [[ "$binary" == *.exe ]] && exe_suffix=".exe"
+    mv "$binary" "$LIB_DIR/axiom3d$exe_suffix"
+    chmod 755 "$LIB_DIR/axiom3d$exe_suffix"
+    rm -rf "$tmp_dir"
+
+    if [ "$os" = "darwin" ] && command -v codesign >/dev/null 2>&1; then
+        # Release binaries are built on Linux and carry no signature; arm64
+        # macOS refuses to exec unsigned code, so sign ad-hoc on install.
+        codesign --force --sign - "$LIB_DIR/axiom3d" 2>/dev/null \
+            || print_message warning "${MUTED}ad-hoc codesign failed; the binary may be blocked by Gatekeeper${NC}"
+    fi
+}
+
+extract_payload() {
+    print_message info "${MUTED}Installing config + Blender harness${NC}"
+    local tmp_dir="${TMPDIR:-/tmp}/axiom3d_payload_$$"
+    mkdir -p "$tmp_dir"
+
+    fetch "$url_base/axiom3d-common.tar.gz" "$tmp_dir/axiom3d-common.tar.gz"
+    # Fresh payload: drop the previous config/harness so renamed files don't
+    # linger across upgrades.
+    rm -rf "$INSTALL_DIR/.opencode" "$INSTALL_DIR/blender" "$INSTALL_DIR/docs"
+    tar -xzf "$tmp_dir/axiom3d-common.tar.gz" -C "$INSTALL_DIR"
+    rm -rf "$tmp_dir"
+
+    # libfive native kernels for this platform (python bindings ship in the
+    # payload, native libs do not).
+    tmp_dir="${TMPDIR:-/tmp}/axiom3d_libfive_$$"
+    mkdir -p "$tmp_dir"
+    fetch "$url_base/libfive-$base_target.tar.gz" "$tmp_dir/libfive-$base_target.tar.gz"
+    mkdir -p "$INSTALL_DIR/blender/vendor"
+    rm -rf "$INSTALL_DIR/blender/vendor/libfive"
+    tar -xzf "$tmp_dir/libfive-$base_target.tar.gz" -C "$INSTALL_DIR/blender/vendor"
     rm -rf "$tmp_dir"
 }
 
 install_from_binary() {
-    print_message info "\n${MUTED}Installing ${NC}opencode ${MUTED}from: ${NC}$binary_path"
-    cp "$binary_path" "${INSTALL_DIR}/opencode"
-    chmod 755 "${INSTALL_DIR}/opencode"
+    print_message info "\n${MUTED}Installing ${NC}axiom3d ${MUTED}from: ${NC}$binary_path"
+    if [ ! -f "$binary_path" ]; then
+        echo -e "${RED}Error: Binary not found at ${binary_path}${NC}"
+        exit 1
+    fi
+    cp "$binary_path" "$LIB_DIR/axiom3d"
+    chmod 755 "$LIB_DIR/axiom3d"
+    print_message warning "${MUTED}Note: --binary installs only the binary; config + harness come from a full install${NC}"
 }
 
-if [ -n "$binary_path" ]; then
-    install_from_binary
-else
-    check_version
-    download_and_install
-fi
+find_blender() {
+    if [ -n "${BLENDER_PATH:-}" ]; then
+        echo "$BLENDER_PATH"
+        return 0
+    fi
+    if command -v blender >/dev/null 2>&1; then
+        command -v blender
+        return 0
+    fi
+    if [ -x "/Applications/Blender.app/Contents/MacOS/Blender" ]; then
+        echo "/Applications/Blender.app/Contents/MacOS/Blender"
+        return 0
+    fi
+    local candidate
+    for candidate in "/c/Program Files/Blender Foundation"/Blender*/blender.exe \
+                     "/mnt/c/Program Files/Blender Foundation"/Blender*/blender.exe; do
+        if [ -x "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
 
+bootstrap_blender_deps() {
+    if [ ! -f "$INSTALL_DIR/blender/bootstrap.py" ]; then
+        return 0
+    fi
+    if [ -d "$INSTALL_DIR/blender/vendor/scipy" ]; then
+        return 0
+    fi
+    local blender
+    if ! blender=$(find_blender); then
+        print_message warning "${MUTED}Blender not found — install Blender 5.2, then re-run this installer${NC}"
+        print_message info "  ${MUTED}https://www.blender.org/download/ (or: brew install --cask blender)${NC}"
+        return 0
+    fi
+    print_message info "${MUTED}Installing Python deps into Blender's interpreter (scipy, trimesh)${NC}"
+    if ! "$blender" --background --factory-startup --python "$INSTALL_DIR/blender/bootstrap.py"; then
+        print_message warning "${MUTED}Dependency bootstrap failed — blender-gate geometry checks will be degraded${NC}"
+        print_message info "  ${MUTED}retry: $blender --background --factory-startup --python $INSTALL_DIR/blender/bootstrap.py${NC}"
+    fi
+}
 
 add_to_path() {
     local config_file=$1
@@ -366,9 +481,9 @@ add_to_path() {
     if grep -Fxq "$command" "$config_file"; then
         print_message info "Command already exists in $config_file, skipping write."
     elif [[ -w $config_file ]]; then
-        echo -e "\n# opencode" >> "$config_file"
+        echo -e "\n# axiom3d" >> "$config_file"
         echo "$command" >> "$config_file"
-        print_message info "${MUTED}Successfully added ${NC}opencode ${MUTED}to \$PATH in ${NC}$config_file"
+        print_message info "${MUTED}Successfully added ${NC}axiom3d ${MUTED}to \$PATH in ${NC}$config_file"
     else
         print_message warning "Manually add the directory to $config_file (or similar):"
         print_message info "  $command"
@@ -377,7 +492,7 @@ add_to_path() {
 
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 
-current_shell=$(basename "$SHELL")
+current_shell=$(basename "${SHELL:-bash}")
 case $current_shell in
     fish)
         config_files="$HOME/.config/fish/config.fish"
@@ -395,66 +510,82 @@ case $current_shell in
         config_files="$HOME/.ashrc $HOME/.profile /etc/profile"
     ;;
     *)
-        # Default case if none of the above matches
         config_files="$HOME/.bashrc $HOME/.bash_profile $XDG_CONFIG_HOME/bash/.bashrc $XDG_CONFIG_HOME/bash/.bash_profile"
     ;;
 esac
 
-if [[ "$no_modify_path" != "true" ]]; then
-    config_file=""
-    for file in $config_files; do
-        if [[ -f $file ]]; then
-            config_file=$file
-            break
+main() {
+    if [ -n "$binary_path" ]; then
+        install_from_binary
+        write_wrapper
+        specific_version="local"
+    else
+        detect_platform
+        if [ "$os" = "darwin" ]; then
+            archive_ext=".tar.gz"
+        elif [ "$os" = "linux" ]; then
+            archive_ext=".tar.gz"
+        else
+            archive_ext=".zip"
         fi
-    done
-
-    if [[ -z $config_file ]]; then
-        print_message warning "No config file found for $current_shell. You may need to manually add to PATH:"
-        print_message info "  export PATH=$INSTALL_DIR:\$PATH"
-    elif [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        case $current_shell in
-            fish)
-                add_to_path "$config_file" "fish_add_path $INSTALL_DIR"
-            ;;
-            zsh)
-                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-            ;;
-            bash)
-                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-            ;;
-            ash)
-                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-            ;;
-            sh)
-                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-            ;;
-            *)
-                export PATH=$INSTALL_DIR:$PATH
-                print_message warning "Manually add the directory to $config_file (or similar):"
-                print_message info "  export PATH=$INSTALL_DIR:\$PATH"
-            ;;
-        esac
+        resolve_version
+        if ! already_installed; then
+            extract_binary
+            extract_payload
+            write_wrapper
+            echo "$specific_version" > "$MARKER"
+        fi
     fi
-fi
 
-if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
-    echo "$INSTALL_DIR" >> $GITHUB_PATH
-    print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
-fi
+    bootstrap_blender_deps
 
-echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
-echo -e ""
-echo -e ""
-echo -e "${MUTED}OpenCode includes free models, to start:${NC}"
-echo -e ""
-echo -e "cd <project>  ${MUTED}# Open directory${NC}"
-echo -e "opencode      ${MUTED}# Run command${NC}"
-echo -e ""
-echo -e "${MUTED}For more information visit ${NC}https://opencode.ai/docs"
-echo -e ""
-echo -e ""
+    if [[ "$no_modify_path" != "true" ]]; then
+        local config_file=""
+        local file
+        for file in $config_files; do
+            if [[ -f $file ]]; then
+                config_file=$file
+                break
+            fi
+        done
+
+        if [[ -z $config_file ]]; then
+            print_message warning "No config file found for $current_shell. You may need to manually add to PATH:"
+            print_message info "  export PATH=$BIN_DIR:\$PATH"
+        elif [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+            case $current_shell in
+                fish)
+                    add_to_path "$config_file" "fish_add_path $BIN_DIR"
+                ;;
+                *)
+                    add_to_path "$config_file" "export PATH=$BIN_DIR:\$PATH"
+                ;;
+            esac
+        fi
+    fi
+
+    if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
+        echo "$BIN_DIR" >> $GITHUB_PATH
+        print_message info "Added $BIN_DIR to \$GITHUB_PATH"
+    fi
+
+    echo -e ""
+    echo -e "${MUTED}  axiom3d — Blender asset agent for Axiom3D${NC}"
+    echo -e ""
+    echo -e "  Installed: ${NC}$INSTALL_DIR${MUTED} (version ${NC}$specific_version${MUTED})${NC}"
+    echo -e ""
+    if [ -z "$(find_blender || true)" ]; then
+        echo -e "  ${ORANGE}Blender 5.2 not found.${NC} Install it, then re-run this installer"
+        echo -e "  ${MUTED}to fetch Python deps:  https://www.blender.org/download/${NC}"
+        echo -e ""
+    fi
+    echo -e "  ${MUTED}To start:${NC}"
+    echo -e ""
+    echo -e "cd <project>  ${MUTED}# Open directory${NC}"
+    echo -e "axiom3d       ${MUTED}# Run command${NC}"
+    echo -e ""
+    echo -e "${MUTED}Docs: $REPO${NC}"
+    echo -e ""
+}
+
+main

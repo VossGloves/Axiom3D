@@ -1,0 +1,9 @@
+libfive python bindings vendored from FieldForge v0.7.2 linux release build
+(libfive @379a54dbbdfd0724100baa6feddb7083ab0e6767, AonoZan/libfive fork).
+Files: blender/vendor/libfive/** — Copyright (C) 2021 Matt Keeter,
+licensed under the Mozilla Public License, v. 2.0 (MPL-2.0),
+https://www.mozilla.org/en-US/MPL/2.0/. Each source file carries the MPL header.
+Modifications: libcustom_c_utils.so (GPL-3.0, FieldForge-authored) not shipped;
+ffi.py missing-library handler extended to catch RuntimeError.
+FieldForge's GPL-3.0 addon code (core/, ui/, utils.py, constants.py, ...) is
+NOT vendored and must never be copied into this repository.

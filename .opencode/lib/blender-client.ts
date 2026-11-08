@@ -9,7 +9,10 @@ import net from "node:net"
 import { appendFile, mkdir, readdir } from "node:fs/promises"
 import { join } from "node:path"
 
-const ROOT = join(import.meta.dir, "..", "..")
+// Axiom3D install root (harness lives at <root>/blender). Installed builds get
+// AXIOM3D_ROOT from the launcher wrapper; repo checkouts fall back to the
+// file-derived root (.opencode/lib -> repo root).
+const ROOT = process.env.AXIOM3D_ROOT ?? join(import.meta.dir, "..", "..")
 const AXIOM_DIR = join(ROOT, ".axiom3d")
 const PORT_FILE = join(AXIOM_DIR, "blender.port")
 const TELEMETRY_FILE = join(AXIOM_DIR, "blender-bridge.jsonl")

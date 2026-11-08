@@ -3,7 +3,8 @@
 Organic modeling kit for the worker: smooth CSG (blend union/difference/
 intersection), shell, and warps (twirl/taper/attract/repel/symmetry), meshed by
 libfive marching cubes instead of mesh booleans. libfive is vendored under
-MPL-2.0 via ./blender/install-libfive.sh (see blender/vendor/libfive NOTICE);
+MPL-2.0 (python bindings in blender/libfive-pkg, native libs per-platform from
+./blender/build-libfive.sh or the Axiom3D installer; see the NOTICE file);
 FieldForge's GPL-3.0 addon code is never imported or copied.
 
 Spec is a recursive node dict:
@@ -48,7 +49,7 @@ from rpc.primitives import _finish
 
 _VENDOR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vendor")
 _SDF_SRC = os.path.join(_VENDOR, "libfive", "src")
-_INSTALL_HINT = "./blender/install-libfive.sh"
+_INSTALL_HINT = "re-run the Axiom3D installer (or ./blender/build-libfive.sh <target>)"
 _BLEND_EPS = 1e-6
 _MIN_DIM = 0.05
 _MAX_CELLS = 1024
@@ -60,17 +61,21 @@ _KINDS = "primitive, csg, shell, twirl, taper, attract, repel, symmetry"
 lf = None
 _import_error = None
 if not os.path.isdir(_SDF_SRC):
-    _import_error = f"libfive not installed (missing {_SDF_SRC}); run {_INSTALL_HINT}"
+    _import_error = f"libfive not installed (missing {_SDF_SRC}); {_INSTALL_HINT}"
 else:
     if _VENDOR not in sys.path:
         sys.path.insert(0, _VENDOR)
+    # libfive-stdlib.dll depends on libfive.dll; Windows only resolves that
+    # from explicitly registered directories, not the DLL's own folder.
+    if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+        os.add_dll_directory(_SDF_SRC)
     # libfive.ffi resolves the .so files through this env var at first import,
     # so it must be set before `import libfive.stdlib` executes.
     os.environ.setdefault("LIBFIVE_FRAMEWORK_DIR", _SDF_SRC)
     try:
         import libfive.stdlib as lf
     except Exception as exc:
-        _import_error = f"libfive import failed: {exc}; reinstall via {_INSTALL_HINT}"
+        _import_error = f"libfive import failed: {exc}; {_INSTALL_HINT}"
 
 
 def cmd_sdf_status(params):

@@ -1,9 +1,8 @@
 # Python deps installed into Blender's bundled interpreter (which ships pip).
-# Install with --target into blender/vendor (gitignored, machine-local) and
-# --no-deps so Blender's bundled numpy that bpy links against is never replaced:
-#   "& <Blender>\5.2\python\bin\python.exe" -m pip install --no-deps --target blender\vendor -r blender\requirements.txt
+# The Axiom3D installer runs blender/bootstrap.py for you; to do it manually:
+#   "<blender python>" -m pip install --no-deps --target blender/vendor -r blender/requirements.txt
 # worker.py puts vendor/ on sys.path at startup.
-# libfive (SDF kernel for blender-sdf) is NOT pip-installable — run once:
-#   ./blender/install-libfive.sh
+# libfive (SDF kernel for blender-sdf) is NOT pip-installable — it ships with
+# the installer, or build from source: ./blender/build-libfive.sh <target>
 scipy==1.18.1
 trimesh==5.1.1

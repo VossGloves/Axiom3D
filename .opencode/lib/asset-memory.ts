@@ -1,11 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
-const ROOT = join(import.meta.dir, "..", "..")
-
-// AXIOM3D_MEMORY_DIR override exists for tests; production always uses .axiom3d/memory.
+// AXIOM3D_MEMORY_DIR override exists for tests; production memory is
+// per-project (the running project's cwd), not the Axiom3D install root.
 const files = () => {
-  const dir = process.env.AXIOM3D_MEMORY_DIR ?? join(ROOT, ".axiom3d", "memory")
+  const dir = process.env.AXIOM3D_MEMORY_DIR ?? join(process.cwd(), ".axiom3d", "memory")
   return {
     dir,
     presets: join(dir, "presets.json"),

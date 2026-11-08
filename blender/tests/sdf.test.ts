@@ -1,6 +1,7 @@
 // blender-sdf tool tests: organic mesh building through the real tool + RPC path,
 // then validate + full gate on the resulting scene. Requires vendor/libfive
-// (./blender/install-libfive.sh). Run from blender/:
+// (ships with the installer; dev builds: ./blender/build-libfive.sh <target>).
+// Run from blender/:
 //   bun test --parallel=1 --no-isolate
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
