@@ -4,6 +4,9 @@
 // Install once:   bun link        (run from the repo root)
 // Then run:       axiom3d [args...]   — same as `bun run dev`, with args forwarded.
 //
+// Defaults AXIOM3D_BLENDER_MODE to "gui" so an explicit AXIOM3D_BLENDER_MODE=...
+// in the environment still wins (e.g. AXIOM3D_BLENDER_MODE=headless axiom3d).
+//
 // Resolves the repo from this file's real path so it works through the `bun link`
 // symlink from anywhere on your machine.
 
@@ -18,6 +21,7 @@ const proc = Bun.spawn(["bun", "run", "--cwd", opencodeDir, "src/index.ts", ...p
   stdin: "inherit",
   stdout: "inherit",
   stderr: "inherit",
+  env: { ...process.env, AXIOM3D_BLENDER_MODE: process.env.AXIOM3D_BLENDER_MODE ?? "gui" },
 })
 
 process.exit(await proc.exited)
