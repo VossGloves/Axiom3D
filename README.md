@@ -58,6 +58,8 @@ with structured evidence.
 
 ## Install
 
+One command — no clone, no git, no Bun:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | bash
 ```
@@ -65,6 +67,9 @@ curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | ba
 Downloads to `~/.axiom3d/`: the compiled CLI, the `axiom3d` agent with the full
 `blender-*` toolset, the Blender harness, and the libfive kernels for your platform
 (linux/darwin × x64/arm64, windows-x64), then puts `axiom3d` on your `PATH`.
+Re-running the installer upgrades; same version re-downloads nothing. Asset gate
+memory lives per project (`<project>/.axiom3d/memory`), so installs share a machine
+without sharing history.
 
 If Blender 5.2 is not installed yet, the installer warns and skips dependency
 bootstrap — install [Blender](https://www.blender.org/download/) (macOS:
