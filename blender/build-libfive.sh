@@ -41,10 +41,10 @@ SRC="$WORK/libfive-src"
 # just the build runner.
 sed -i.bak '/-march=native/d' "$SRC/CMakeLists.txt"
 sed -i.bak 's| /arch:AVX2||' "$SRC/CMakeLists.txt"
-# vcpkg installs Boost's config as "BoostConfig.cmake"; the upstream MSVC
-# branch asks for lowercase "boost", which only resolves on case-insensitive
-# filesystems.
-sed -i.bak 's/find_package(boost /find_package(Boost /' "$SRC/CMakeLists.txt"
+# Upstream's MSVC branch asks for lowercase "boost" with a version, which
+# resolves through neither vcpkg's config (case/version) nor CMake 4's
+# removed FindBoost module. Ask vcpkg's BoostConfig directly.
+sed -i.bak 's/find_package(boost REQUIRED 1.65.0)/find_package(Boost CONFIG REQUIRED)/' "$SRC/CMakeLists.txt"
 # Upstream writes "/MD/" — MSVC tolerates the stray slash only as a warning.
 sed -i.bak 's|/MD/|/MD |' "$SRC/CMakeLists.txt"
 
@@ -117,7 +117,9 @@ if [ "$TARGET" = "windows-x64" ] && [ -n "${VCPKG_ROOT:-}" ]; then
   # Dynamic vcpkg triplet: libfive.dll links libpng/zlib DLLs, and Blender
   # only resolves them from the DLL directory registered in sdf.py.
   for dll in "$VCPKG_ROOT"/installed/x64-windows/bin/*.dll; do
-    [ -f "$dll" ] && cp "$dll" "$STAGE/src/"
+    if [ -f "$dll" ]; then
+      cp "$dll" "$STAGE/src/"
+    fi
   done
 fi
 

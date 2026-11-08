@@ -96,19 +96,18 @@ jobs:
         with:
           node-version: "24"
 
-      # .opencode/package-lock.json is intentionally gitignored, so install
-      # from the exact-pinned package.json instead of ci.
-      - name: Install config-dir dependencies
-        run: npm install --no-audit --no-fund
-        working-directory: .opencode
-
+      # .opencode/package-lock.json is gitignored, and in-repo npm walks up into
+      # the root workspace (whose catalog: specs npm cannot parse) — stage
+      # outside the repo, where .opencode is an isolated npm project.
       - name: Package
         run: |
           set -euo pipefail
           stage="$(mktemp -d)"
           mkdir -p "$stage/.opencode" "$stage/blender" "$stage/docs/axiom3d"
+          (cd .opencode && tar -cf - --exclude='node_modules' --exclude='__pycache__' .) \
+            | tar -xf - -C "$stage/.opencode"
+          (cd "$stage/.opencode" && npm install --no-audit --no-fund)
           # Config dir ships complete, including node_modules (offline startup).
-          (cd .opencode && tar -cf - --exclude='__pycache__' .) | tar -xf - -C "$stage/.opencode"
           # Harness ships without vendor/ (platform wheels + libfive are
           # installed separately) or bytecode caches.
           (cd blender && tar -cf - --exclude='vendor' --exclude='__pycache__' --exclude='*.pyc' .) \
@@ -116,7 +115,7 @@ jobs:
           cp docs/axiom3d/conventions.md "$stage/docs/axiom3d/"
           cp LICENSE "$stage/LICENSE"
           tar -czf axiom3d-common.tar.gz -C "$stage" .opencode blender docs LICENSE
-          tar -tzf axiom3d-common.tar.gz | head -20
+          tar -tzf axiom3d-common.tar.gz | wc -l
           du -h axiom3d-common.tar.gz
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
