@@ -5,6 +5,10 @@ An AI harness for generating **3D assets in Blender**, built as a specialized fo
 headless Blender session verifies every change through a staged gate before it is
 trusted — so hallucinated APIs and silently-broken geometry are caught, not shipped.
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | bash
+```
+
 ---
 
 ## The problem
@@ -41,7 +45,7 @@ with structured evidence.
   exec) fail fast; scene stages (geometry, mesh quality, export roundtrip, render) all
   run and accumulate issues so one report carries everything the agent needs to fix.
 - **Geometry tools** — `blender-primitive`, `blender-sdf` (organic meshes from JSON SDF
-  specs: smooth blend CSG, shell, warps, via the vendored libfive kernel), `blender-curve`,
+  specs: smooth blend CSG, shell, warps, via the libfive kernel), `blender-curve`,
   `blender-boolean`, `blender-modify` (bevel, array, remesh, deform, displace, linked-instance),
   `blender-material` (10-entry PBR library), `blender-assembly`, `blender-damage`.
   Agents build each asset's specific proportions and details in code.
@@ -53,7 +57,8 @@ with structured evidence.
 
 ## Requirements
 
-- **Blender 5.2** (headless; the harness pins this version exactly)
+- **Blender 5.2** — the harness pins this version exactly; the installer detects it and
+  bootstraps Python deps on the next run
 - **[Bun](https://bun.sh)** — development builds only
 
 ## Install
@@ -77,22 +82,28 @@ bootstrap — install [Blender](https://www.blender.org/download/) (macOS:
 then re-run the installer once to fetch `scipy`/`trimesh` into Blender's Python.
 Other options: `--version <x.y.z>`, `--no-modify-path`, `--binary <path>`.
 
+Then start it from anywhere:
+
 ```bash
-cd <project>
-axiom3d
+cd <project>      # open the project the asset should be written into
+axiom3d           # agent starts as the primary `axiom3d` agent
 ```
+
+Ask it to build something — *"make a 1 m crate"*, *"model a wooden chair with soft
+bevels"*. The agent retrieves the API, composes geometry from primitives and modifiers
+with the brief's proportions, and runs the gate until the asset passes.
 
 ## From source
 
 ```bash
+git clone https://github.com/madmarv10/Axiom3D.git && cd Axiom3D
 bun install
 
 # Point the harness at your Blender install (or let it auto-discover on Windows):
 export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
 
-# Install Blender Python deps into Blender's bundled interpreter:
-"<blender>/5.2/python/bin/python" -m pip install --no-deps \
-  --target blender/vendor -r blender/requirements.txt
+# Python deps into Blender's own interpreter (same script the installer runs):
+blender --background --factory-startup --python blender/bootstrap.py
 
 # libfive (blender-sdf kernel), built from source:
 ./blender/build-libfive.sh <linux-x64|linux-arm64|darwin-x64|darwin-arm64|windows-x64>
@@ -101,20 +112,10 @@ export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
 bun link
 ```
 
-Then start it from anywhere:
-
-```bash
-axiom3d
-```
-
-Installed builds run the compiled binary through a launcher wrapper; from source,
-`axiom3d` is a thin script (see `script/axiom3d.ts`) that starts the same thing as
-`bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any
-arguments. Ask it to build something — e.g. *"make a 1 m crate"* or *"model a wooden
-chair with soft bevels"*. The agent retrieves the API, composes geometry from
-primitives and modifiers with the brief's proportions, and runs the gate until the
-asset passes. Python deps include `trimesh` for mesh analysis and `scipy` for
-optimization, interpolation, smoothing, and spatial search.
+`axiom3d` from source is a thin script (`script/axiom3d.ts`) that starts the same
+thing as `bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any
+arguments. Installed builds instead run the compiled binary through a launcher
+wrapper that exports `AXIOM3D_ROOT` and `OPENCODE_CONFIG_DIR`.
 
 The full design, phase history, and conventions live in [`PLAN.md`](./PLAN.md) and
 [`docs/axiom3d/conventions.md`](./docs/axiom3d/conventions.md).
@@ -136,35 +137,44 @@ Build-time validator (also run in CI):
 blender --background --factory-startup --python blender/corpus/validate_patterns.py
 ```
 
-CI (`.github/workflows/axiom3d.yml`) runs on every push/PR to `main`: it installs the
+**CI** (`.github/workflows/axiom3d.yml`) runs on every push/PR to `main`: it installs the
 pinned Blender 5.2.2 (cached), `bun typecheck`, the pattern cookbook validator, and the
 full headless Workbench test suite under Xvfb.
 
-Releases (`.github/workflows/release-axiom3d.yml`) run on every `v*` tag: they build
-all CLI targets, package the config + harness payload, compile libfive native kernels
-per platform, and publish everything as GitHub release assets consumed by `install`.
+**Releases** (`.github/workflows/release-axiom3d.yml`) run on every `v*` tag (or manual
+dispatch): one runner cross-compiles all CLI targets, a second packages the config +
+harness payload, a five-platform matrix compiles the libfive native kernels, and the
+release job publishes everything as GitHub release assets that `install` consumes.
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0   # cut a release
+```
 
 ## Layout
 
 ```
-install              curl|bash installer (release assets -> ~/.axiom3d)
-script/axiom3d.ts    dev launcher (registered via `bun link`)
+install                curl|bash installer (release assets -> ~/.axiom3d)
+script/axiom3d.ts      dev launcher (registered via `bun link`)
+.github/workflows/
+├── axiom3d.yml        push/PR CI: typecheck + Blender test suite
+└── release-axiom3d.yml  tag -> CLI + payload + libfive assets
 blender/
-├── worker.py        persistent session: JSON-RPC loop, snapshot/restore, watchdog
-├── bootstrap.py     pip-install Blender deps (run by the installer)
-├── build-libfive.sh build libfive native kernels + package per-platform assets
-├── libfive-pkg/     libfive python bindings (MPL-2.0), packaged with native libs
-├── rpc/             command handlers (exec, gate, docs, render, export, materials, modify, ...)
-├── gate/            staged verification pipeline + AST API-symbol checker
-├── geom/            evaluated-mesh geometry + trimesh quality checks
-├── materials.py     PBR material library builders
-├── corpus/          live bpy introspection + pattern cookbook + breaking changes
-└── tests/           bun test suite (worker, tools, gate, modify, corpus)
-.opencode/
-├── tools/           blender-* agent tools
-├── agent/axiom3d.md the agent's workflow prompt
-├── skills/          blender-asset-authoring skill
-└── lib/             TypeScript worker client (spawn, RPC, timeout, restart)
+├── worker.py          persistent session: JSON-RPC loop, snapshot/restore, watchdog
+├── bootstrap.py       pip-install Blender deps (run by the installer)
+├── build-libfive.sh   build libfive native kernels + package per-platform assets
+├── libfive-pkg/       libfive python bindings (MPL-2.0), packaged with native libs
+├── rpc/               command handlers (exec, gate, docs, render, export, materials, ...)
+├── gate/              staged verification pipeline + AST API-symbol checker
+├── geom/              evaluated-mesh geometry + trimesh quality checks
+├── materials.py       PBR material library builders
+├── corpus/            live bpy introspection + pattern cookbook + breaking changes
+└── tests/             bun test suite (worker, tools, gate, modify, corpus)
+.opencode/             config dir (shipped as the installer's payload)
+├── agent/axiom3d.md   the agent's workflow prompt (+ modeller/repair subagents)
+├── tools/             blender-* agent tools
+├── skills/            blender-asset-authoring skill
+├── plugins/           TUI/theme hooks
+└── lib/               TypeScript worker client (spawn, RPC, timeout, restart)
 ```
 
 ## Credits
