@@ -164,12 +164,15 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install cmake eigen libpng boost pkg-config
 
-      # vcpkg is preinstalled on GitHub windows runners. libfive only needs
-      # boost-container + boost-bimap headers (plus their config machinery).
+      # vcpkg is preinstalled on GitHub windows runners. Header set libfive's
+      # src/include actually includes: algorithm, bimap, container, functional,
+      # lockfree, numeric interval (plus eigen3 + libpng).
       - name: Dependencies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: vcpkg install eigen3 libpng boost-container boost-bimap
+        run: >
+          vcpkg install eigen3 libpng boost-algorithm boost-bimap
+          boost-container boost-functional boost-lockfree boost-interval
 
       # CMake's VS-generator discovery fails under the runner's git-bash;
       # explicit MSVC env + Ninja sidesteps it.
