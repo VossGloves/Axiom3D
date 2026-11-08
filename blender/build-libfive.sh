@@ -72,9 +72,10 @@ if [ "$TARGET" = "windows-x64" ]; then
   echo "==> configuring (MSVC + vcpkg, generator: ${GEN[*]})"
   # Upstream's MSVC branch never sets EIGEN_INCLUDE_DIRS / PNG_INCLUDE_DIR
   # (pkg-config sets them only on the unix path), so feed them explicitly.
+  # vcpkg nests eigen headers under include/eigen3/.
   cmake -S "$SRC" -B "$BUILD_DIR" "${GEN[@]}" \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-    -DEIGEN_INCLUDE_DIRS="$VCPKG_INC" \
+    -DEIGEN_INCLUDE_DIRS="$VCPKG_INC/eigen3" \
     -DPNG_INCLUDE_DIR="$VCPKG_INC" \
     "${COMMON_ARGS[@]}"
   echo "==> building libfive libfive-stdlib"
