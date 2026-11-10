@@ -4,7 +4,7 @@ Plan source of truth. Update phase checkboxes here as work completes so any sess
 
 ## Context
 
-Turn this opencode fork (github.com/madmarv10/Axiom3D) into a general-purpose AI harness
+Turn this opencode fork (github.com/VossGloves/Axiom3D) into a general-purpose AI harness
 for Blender 3D asset generation. LLM-generated `bpy` scripts fail two ways: hallucinated
 APIs and silent geometry failures. Fix: persistent headless Blender session + scene
 introspection + staged verification gate + version-pinned API docs.

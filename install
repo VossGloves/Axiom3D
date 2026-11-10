@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 APP=axiom3d
-REPO=madmarv10/Axiom3D
+REPO=VossGloves/Axiom3D
 RELEASE_URL="https://github.com/$REPO/releases"
 
 MUTED='\033[0;2m'

@@ -6,8 +6,10 @@ headless Blender session verifies every change through a staged gate before it i
 trusted — so hallucinated APIs and silently-broken geometry are caught, not shipped.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | bash
+curl -fsSL https://raw.githubusercontent.com/VossGloves/Axiom3D/main/install | bash
 ```
+
+Works on Linux, macOS, and Windows (WSL, Git Bash, or MSYS2). Per-OS commands below.
 
 ---
 
@@ -63,15 +65,43 @@ with structured evidence.
 
 ## Install
 
-One command — no clone, no git, no Bun:
+One command per OS — no clone, no git, no Bun. All three run the same installer;
+it detects your OS and architecture and downloads the right build.
+
+### Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/madmarv10/Axiom3D/main/install | bash
+curl -fsSL https://raw.githubusercontent.com/VossGloves/Axiom3D/main/install | bash
 ```
+
+### macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VossGloves/Axiom3D/main/install | bash
+```
+
+### Windows
+
+Native builds (`windows-x64`) install from any real bash environment — WSL,
+Git Bash, or MSYS2:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VossGloves/Axiom3D/main/install | bash
+```
+
+Pure PowerShell/CMD has no bash, so pipe won't work there. Two options:
+
+1. **Recommended — Git Bash** (or WSL). Install [Git for Windows](https://git-scm.com/download/win)
+   for Git Bash, or `wsl --install` for Ubuntu on Windows, then run the Linux/Windows
+   command above inside that shell.
+2. **PowerShell/CMD** — no bash means no pipe; download the release asset from
+   [github.com/VossGloves/Axiom3D/releases](https://github.com/VossGloves/Axiom3D/releases),
+   unpack it, then run the installer from Git Bash with `./install --binary /path/to/axiom3d`.
 
 Downloads to `~/.axiom3d/`: the compiled CLI, the `axiom3d` agent with the full
 `blender-*` toolset, the Blender harness, and the libfive kernels for your platform
 (linux/darwin × x64/arm64, windows-x64), then puts `axiom3d` on your `PATH`.
+On Windows installs to `%USERPROFILE%\.axiom3d\` instead.
 Re-running the installer upgrades; same version re-downloads nothing. Asset gate
 memory lives per project (`<project>/.axiom3d/memory`), so installs share a machine
 without sharing history.
@@ -96,7 +126,7 @@ with the brief's proportions, and runs the gate until the asset passes.
 ## From source
 
 ```bash
-git clone https://github.com/madmarv10/Axiom3D.git && cd Axiom3D
+git clone https://github.com/VossGloves/Axiom3D.git && cd Axiom3D
 bun install
 
 # Point the harness at your Blender install (or let it auto-discover on Windows):
