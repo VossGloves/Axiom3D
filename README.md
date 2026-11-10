@@ -65,9 +65,6 @@ with structured evidence.
 
 ## Install
 
-One command per OS — no clone, no git, no Bun. All three run the same installer;
-it detects your OS and architecture and downloads the right build.
-
 ### Linux
 
 ```bash
